@@ -5,7 +5,12 @@ import {
   Divider,
   FormControl,
   Grid,
+  IconButton,
   InputLabel,
+  List,
+  ListItem,
+  ListItemSecondaryAction,
+  ListItemText,
   MenuItem,
   Paper,
   Select,
@@ -13,11 +18,19 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const initialHotspot = { label: "", yaw: 0, pitch: 0, targetRoomId: "" };
 const initialMarker = { title: "", description: "", yaw: 0, pitch: 0 };
 
-const HotspotEditor = ({ room, rooms, onAddHotspot, onAddInfoMarker }) => {
+const HotspotEditor = ({
+  room,
+  rooms,
+  onAddHotspot,
+  onAddInfoMarker,
+  onDeleteHotspot,
+  onDeleteInfoMarker,
+}) => {
   const [hotspotForm, setHotspotForm] = useState(initialHotspot);
   const [markerForm, setMarkerForm] = useState(initialMarker);
 
@@ -158,6 +171,54 @@ const HotspotEditor = ({ room, rooms, onAddHotspot, onAddInfoMarker }) => {
         >
           Add info marker
         </Button>
+
+        {(room.hotspots?.length > 0 || room.infoMarkers?.length > 0) && <Divider />}
+
+        {room.hotspots?.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Existing Hotspots
+            </Typography>
+            <List size="small" disablePadding>
+              {room.hotspots.map((h) => (
+                <ListItem key={h.id} dense disableGutters>
+                  <ListItemText
+                    primary={h.label || "Go to room"}
+                    secondary={`Yaw: ${h.yaw} / Pitch: ${h.pitch}`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton edge="end" size="small" onClick={() => onDeleteHotspot?.(h.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
+
+        {room.infoMarkers?.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>
+              Existing Markers
+            </Typography>
+            <List size="small" disablePadding>
+              {room.infoMarkers.map((m) => (
+                <ListItem key={m.id} dense disableGutters>
+                  <ListItemText
+                    primary={m.title || "Info"}
+                    secondary={`Yaw: ${m.yaw} / Pitch: ${m.pitch}`}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton edge="end" size="small" onClick={() => onDeleteInfoMarker?.(m.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
       </Stack>
     </Paper>
   );
