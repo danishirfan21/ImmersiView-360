@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Box, IconButton, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
+import CameraIcon from "@mui/icons-material/Camera";
 import { Pannellum } from "pannellum-react";
 
 const createTooltipNode = (label, details, color) => {
@@ -45,8 +46,9 @@ const createTooltipNode = (label, details, color) => {
   return wrapper;
 };
 
-const PanoramaViewer = ({ room, roomMap, onNavigateRoom }) => {
+const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) => {
   const rootRef = useRef(null);
+  const pannellumRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -80,6 +82,18 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom }) => {
       setIsImageLoading(false);
     };
   }, [room?.id, room?.panoramaUrl]);
+
+  const handleSaveView = useCallback(() => {
+    if (!pannellumRef.current) return;
+    const viewer = pannellumRef.current.getViewer();
+    if (viewer) {
+      onUpdateInitialView?.(room.id, {
+        pitch: viewer.getPitch(),
+        yaw: viewer.getYaw(),
+        hfov: viewer.getHfov(),
+      });
+    }
+  }, [onUpdateInitialView, room?.id]);
 
   const toggleFullscreen = useCallback(async () => {
     if (!rootRef.current) return;
@@ -150,17 +164,25 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom }) => {
             {room.name}
           </Typography>
         </Box>
-        <Tooltip title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
-          <IconButton onClick={toggleFullscreen} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)", pointerEvents: "auto" }}>
-            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-          </IconButton>
-        </Tooltip>
+        <Stack direction="row" spacing={1} sx={{ pointerEvents: "auto" }}>
+          <Tooltip title="Set current view as default">
+            <IconButton onClick={handleSaveView} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
+              <CameraIcon />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
+            <IconButton onClick={toggleFullscreen} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
+              {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+            </IconButton>
+          </Tooltip>
+        </Stack>
       </Stack>
 
       {isImageLoading && <LinearProgress sx={{ position: "absolute", zIndex: 3, top: 0, left: 0, right: 0 }} />}
 
       {displaySrc ? (
         <Pannellum
+          ref={pannellumRef}
           width="100%"
           height="560px"
           image={displaySrc}

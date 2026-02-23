@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -19,10 +19,26 @@ const createId = () => `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
 const TourManager = () => {
   const theme = useTheme();
-  const [rooms, setRooms] = useState([]);
-  const [activeRoomId, setActiveRoomId] = useState("");
+  const [rooms, setRooms] = useState(() => {
+    const saved = localStorage.getItem("immersiview-tour");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        console.error("Failed to load tour from storage", e);
+        return [];
+      }
+    }
+    return [];
+  });
+  const [activeRoomId, setActiveRoomId] = useState(() => (rooms.length > 0 ? rooms[0].id : ""));
   const [newRoomName, setNewRoomName] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("immersiview-tour", JSON.stringify(rooms));
+  }, [rooms]);
 
   const roomMap = useMemo(
     () => rooms.reduce((acc, room) => ({ ...acc, [room.id]: room }), {}),
@@ -52,6 +68,13 @@ const TourManager = () => {
   const patchActiveRoom = (recipe) => {
     if (!activeRoom) return;
     setRooms((prev) => prev.map((room) => (room.id === activeRoom.id ? recipe(room) : room)));
+  };
+
+  const deleteRoom = (roomId) => {
+    setRooms((prev) => prev.filter((room) => room.id !== roomId));
+    if (activeRoomId === roomId) {
+      setActiveRoomId("");
+    }
   };
 
   const onUploadPanorama = (event) => {
@@ -85,6 +108,62 @@ const TourManager = () => {
     }));
   };
 
+  const deleteHotspot = (hotspotId) => {
+    patchActiveRoom((room) => ({
+      ...room,
+      hotspots: room.hotspots.filter((h) => h.id !== hotspotId),
+    }));
+  };
+
+  const deleteInfoMarker = (markerId) => {
+    patchActiveRoom((room) => ({
+      ...room,
+      infoMarkers: room.infoMarkers.filter((m) => m.id !== markerId),
+    }));
+  };
+
+  const updateRoomName = (roomId, newName) => {
+    setRooms((prev) =>
+      prev.map((room) => (room.id === roomId ? { ...room, name: newName } : room))
+    );
+  };
+
+  const updateInitialView = (roomId, view) => {
+    setRooms((prev) =>
+      prev.map((room) => (room.id === roomId ? { ...room, initialView: view } : room))
+    );
+  };
+
+  const exportTour = () => {
+    const dataStr = JSON.stringify(rooms, null, 2);
+    const dataUri = "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    const exportFileDefaultName = "tour-config.json";
+
+    const linkElement = document.createElement("a");
+    linkElement.setAttribute("href", dataUri);
+    linkElement.setAttribute("download", exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const importTour = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = JSON.parse(e.target.result);
+        if (Array.isArray(content)) {
+          setRooms(content);
+          if (content.length > 0) setActiveRoomId(content[0].id);
+        }
+      } catch (err) {
+        alert("Failed to parse tour file. Make sure it is a valid JSON array.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, mx: "auto" }}>
       <Stack spacing={3}>
@@ -107,21 +186,38 @@ const TourManager = () => {
                 Upload panoramas, link rooms with hotspots, and craft a smooth property walkthrough.
               </Typography>
             </Box>
-            <Stack direction="row" spacing={1.5}>
-              <TextField
-                size="small"
-                label="Room name"
-                value={newRoomName}
-                onChange={(event) => setNewRoomName(event.target.value)}
-              />
-              <Button variant="contained" onClick={addRoom}>
-                Create room
-              </Button>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <Stack direction="row" spacing={1}>
+                <Button variant="outlined" color="inherit" size="small" onClick={exportTour}>
+                  Export
+                </Button>
+                <Button variant="outlined" color="inherit" size="small" component="label">
+                  Import
+                  <input type="file" accept="application/json" hidden onChange={importTour} />
+                </Button>
+              </Stack>
+              <Stack direction="row" spacing={1.5}>
+                <TextField
+                  size="small"
+                  label="Room name"
+                  value={newRoomName}
+                  onChange={(event) => setNewRoomName(event.target.value)}
+                />
+                <Button variant="contained" onClick={addRoom}>
+                  Create room
+                </Button>
+              </Stack>
             </Stack>
           </Stack>
         </Paper>
 
-        <RoomNavigator rooms={rooms} activeRoomId={activeRoomId} onSelectRoom={setActiveRoomId} />
+        <RoomNavigator
+          rooms={rooms}
+          activeRoomId={activeRoomId}
+          onSelectRoom={setActiveRoomId}
+          onDeleteRoom={deleteRoom}
+          onUpdateRoomName={updateRoomName}
+        />
 
         {activeRoom ? (
           <Alert severity="info">Tip: use yaw/pitch values to place hotspots. Example: yaw 45, pitch -5.</Alert>
@@ -136,7 +232,12 @@ const TourManager = () => {
                   opacity: isTransitioning ? 0.15 : 1,
                 }}
               >
-                <PanoramaViewer room={activeRoom} roomMap={roomMap} onNavigateRoom={navigateWithTransition} />
+                <PanoramaViewer
+                  room={activeRoom}
+                  roomMap={roomMap}
+                  onNavigateRoom={navigateWithTransition}
+                  onUpdateInitialView={updateInitialView}
+                />
               </Box>
             </Box>
           </Grid>
@@ -156,7 +257,14 @@ const TourManager = () => {
                 </Typography>
               </Paper>
 
-              <HotspotEditor room={activeRoom} rooms={rooms} onAddHotspot={addHotspot} onAddInfoMarker={addInfoMarker} />
+              <HotspotEditor
+                room={activeRoom}
+                rooms={rooms}
+                onAddHotspot={addHotspot}
+                onAddInfoMarker={addInfoMarker}
+                onDeleteHotspot={deleteHotspot}
+                onDeleteInfoMarker={deleteInfoMarker}
+              />
             </Stack>
           </Grid>
         </Grid>
