@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { api } from "../api/client";
 import {
   Alert,
   Box,
@@ -19,70 +20,93 @@ const createId = () => `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
 const TourManager = () => {
   const theme = useTheme();
-  const [rooms, setRooms] = useState(() => {
-    const saved = localStorage.getItem("immersiview-tour");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch (e) {
-        console.error("Failed to load tour from storage", e);
-        return [];
-      }
-    }
-    return [];
-  });
-  const [activeRoomId, setActiveRoomId] = useState(() => (rooms.length > 0 ? rooms[0].id : ""));
+  const [rooms, setRooms] = useState([]);
+  const [activeRoomId, setActiveRoomId] = useState("");
+  const [currentTour, setCurrentTour] = useState(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("immersiview-tour", JSON.stringify(rooms));
-  }, [rooms]);
+    const loadInitialTour = async () => {
+      try {
+        const tours = await api.get("/tours");
+        if (tours.length > 0) {
+          const { tour, rooms: tourRooms } = await api.get(`/tours/${tours[0]._id}`);
+          setCurrentTour(tour);
+          setRooms(tourRooms);
+          if (tourRooms.length > 0) setActiveRoomId(tourRooms[0]._id);
+        } else {
+          // Create a default tour if none exist
+          const newTour = await api.post("/tours", { name: "My First Tour" });
+          setCurrentTour(newTour);
+        }
+      } catch (err) {
+        console.error("Failed to load tour", err);
+      }
+    };
+    loadInitialTour();
+  }, []);
 
   const roomMap = useMemo(
-    () => rooms.reduce((acc, room) => ({ ...acc, [room.id]: room }), {}),
+    () => rooms.reduce((acc, room) => ({ ...acc, [room._id]: room }), {}),
     [rooms]
   );
 
-  const activeRoom = rooms.find((room) => room.id === activeRoomId) || null;
+  const activeRoom = rooms.find((room) => room._id === activeRoomId) || null;
 
-  const addRoom = () => {
-    if (!newRoomName.trim()) return;
+  const addRoom = async () => {
+    if (!newRoomName.trim() || !currentTour) return;
 
-    const id = createId();
-    const room = {
-      id,
-      name: newRoomName.trim(),
-      panoramaUrl: "",
-      hotspots: [],
-      infoMarkers: [],
-      initialView: { yaw: 0, pitch: 0, hfov: 110 },
-    };
-
-    setRooms((prev) => [...prev, room]);
-    setActiveRoomId(id);
-    setNewRoomName("");
-  };
-
-  const patchActiveRoom = (recipe) => {
-    if (!activeRoom) return;
-    setRooms((prev) => prev.map((room) => (room.id === activeRoom.id ? recipe(room) : room)));
-  };
-
-  const deleteRoom = (roomId) => {
-    setRooms((prev) => prev.filter((room) => room.id !== roomId));
-    if (activeRoomId === roomId) {
-      setActiveRoomId("");
+    try {
+      const newRoom = await api.post(`/tours/${currentTour._id}/rooms`, {
+        name: newRoomName.trim(),
+        hotspots: [],
+        infoMarkers: [],
+      });
+      setRooms((prev) => [...prev, newRoom]);
+      setActiveRoomId(newRoom._id);
+      setNewRoomName("");
+    } catch (err) {
+      console.error("Failed to add room", err);
     }
   };
 
-  const onUploadPanorama = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const patchActiveRoom = async (recipe) => {
+    if (!activeRoom) return;
+    const updatedRoomData = recipe(activeRoom);
+    try {
+      const updatedRoom = await api.patch(`/tours/rooms/${activeRoom._id}`, updatedRoomData);
+      setRooms((prev) => prev.map((room) => (room._id === activeRoom._id ? updatedRoom : room)));
+    } catch (err) {
+      console.error("Failed to update room", err);
+    }
+  };
 
-    const objectUrl = URL.createObjectURL(file);
-    patchActiveRoom((room) => ({ ...room, panoramaUrl: objectUrl }));
+  const deleteRoom = async (roomId) => {
+    try {
+      await api.delete(`/tours/rooms/${roomId}`);
+      setRooms((prev) => prev.filter((room) => room._id !== roomId));
+      if (activeRoomId === roomId) {
+        setActiveRoomId("");
+      }
+    } catch (err) {
+      console.error("Failed to delete room", err);
+    }
+  };
+
+  const onUploadPanorama = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !activeRoom) return;
+
+    const formData = new FormData();
+    formData.append("panorama", file);
+
+    try {
+      const updatedRoom = await api.post(`/tours/rooms/${activeRoom._id}/panorama`, formData, true);
+      setRooms((prev) => prev.map((room) => (room._id === activeRoom._id ? updatedRoom : room)));
+    } catch (err) {
+      console.error("Failed to upload panorama", err);
+    }
   };
 
   const navigateWithTransition = (targetRoomId) => {
@@ -122,16 +146,26 @@ const TourManager = () => {
     }));
   };
 
-  const updateRoomName = (roomId, newName) => {
-    setRooms((prev) =>
-      prev.map((room) => (room.id === roomId ? { ...room, name: newName } : room))
-    );
+  const updateRoomName = async (roomId, newName) => {
+    try {
+      const updatedRoom = await api.patch(`/tours/rooms/${roomId}`, { name: newName });
+      setRooms((prev) =>
+        prev.map((room) => (room._id === roomId ? updatedRoom : room))
+      );
+    } catch (err) {
+      console.error("Failed to update room name", err);
+    }
   };
 
-  const updateInitialView = (roomId, view) => {
-    setRooms((prev) =>
-      prev.map((room) => (room.id === roomId ? { ...room, initialView: view } : room))
-    );
+  const updateInitialView = async (roomId, view) => {
+    try {
+      const updatedRoom = await api.patch(`/tours/rooms/${roomId}`, { initialView: view });
+      setRooms((prev) =>
+        prev.map((room) => (room._id === roomId ? updatedRoom : room))
+      );
+    } catch (err) {
+      console.error("Failed to update initial view", err);
+    }
   };
 
   const exportTour = () => {
@@ -217,6 +251,7 @@ const TourManager = () => {
           onSelectRoom={setActiveRoomId}
           onDeleteRoom={deleteRoom}
           onUpdateRoomName={updateRoomName}
+          idField="_id"
         />
 
         {activeRoom ? (
