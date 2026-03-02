@@ -1,7 +1,14 @@
 import React from "react";
 import { Chip, Paper, Stack, Typography } from "@mui/material";
 
-const RoomNavigator = ({ rooms, activeRoomId, onSelectRoom, onDeleteRoom, onUpdateRoomName }) => {
+const RoomNavigator = ({
+  rooms,
+  activeRoomId,
+  onSelectRoom,
+  onDeleteRoom,
+  onUpdateRoomName,
+  idField = "id",
+}) => {
   if (!rooms.length) {
     return (
       <Paper sx={{ p: 2.5, borderRadius: 3 }}>
@@ -13,23 +20,26 @@ const RoomNavigator = ({ rooms, activeRoomId, onSelectRoom, onDeleteRoom, onUpda
   return (
     <Paper sx={{ p: 2.5, borderRadius: 3 }}>
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        {rooms.map((room) => (
-          <Chip
-            key={room.id}
-            label={room.name}
-            onClick={() => onSelectRoom?.(room.id)}
-            onDelete={onDeleteRoom ? () => onDeleteRoom(room.id) : undefined}
-            onDoubleClick={() => {
-              const newName = window.prompt("Enter new room name:", room.name);
-              if (newName && newName.trim() && newName !== room.name) {
-                onUpdateRoomName?.(room.id, newName.trim());
-              }
-            }}
-            color={room.id === activeRoomId ? "primary" : "default"}
-            variant={room.id === activeRoomId ? "filled" : "outlined"}
-            sx={{ cursor: "pointer" }}
-          />
-        ))}
+        {rooms.map((room) => {
+          const id = room[idField];
+          return (
+            <Chip
+              key={id}
+              label={room.name}
+              onClick={() => onSelectRoom?.(id)}
+              onDelete={onDeleteRoom ? () => onDeleteRoom(id) : undefined}
+              onDoubleClick={() => {
+                const newName = window.prompt("Enter new room name:", room.name);
+                if (newName && newName.trim() && newName !== room.name) {
+                  onUpdateRoomName?.(id, newName.trim());
+                }
+              }}
+              color={id === activeRoomId ? "primary" : "default"}
+              variant={id === activeRoomId ? "filled" : "outlined"}
+              sx={{ cursor: "pointer" }}
+            />
+          );
+        })}
       </Stack>
     </Paper>
   );

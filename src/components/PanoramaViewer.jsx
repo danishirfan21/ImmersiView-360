@@ -52,6 +52,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [transitionOpacity, setTransitionOpacity] = useState(1);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -68,20 +69,26 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
       return;
     }
 
-    const image = new Image();
     setIsImageLoading(true);
+    setTransitionOpacity(0);
+
+    const image = new Image();
     image.src = room.panoramaUrl;
 
     image.onload = () => {
-      setDisplaySrc(room.panoramaUrl);
-      setIsImageLoading(false);
+      setTimeout(() => {
+        setDisplaySrc(room.panoramaUrl);
+        setIsImageLoading(false);
+        setTransitionOpacity(1);
+      }, 300); // Give time for fade out
     };
 
     image.onerror = () => {
       setDisplaySrc(room.panoramaUrl);
       setIsImageLoading(false);
+      setTransitionOpacity(1);
     };
-  }, [room?.id, room?.panoramaUrl]);
+  }, [room?._id, room?.panoramaUrl]);
 
   const handleSaveView = useCallback(() => {
     if (!pannellumRef.current) return;
@@ -181,18 +188,25 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
       {isImageLoading && <LinearProgress sx={{ position: "absolute", zIndex: 3, top: 0, left: 0, right: 0 }} />}
 
       {displaySrc ? (
-        <Pannellum
-          ref={pannellumRef}
-          width="100%"
-          height="560px"
-          image={displaySrc}
+        <Box
+          sx={{
+            transition: "opacity 500ms ease-in-out",
+            opacity: transitionOpacity,
+          }}
+        >
+          <Pannellum
+            ref={pannellumRef}
+            width="100%"
+            height="560px"
+            image={displaySrc}
           pitch={room.initialView?.pitch ?? 0}
           yaw={room.initialView?.yaw ?? 0}
           hfov={room.initialView?.hfov ?? 110}
           autoLoad
           showControls
-          hotSpots={panoramaHotspots}
-        />
+            hotSpots={panoramaHotspots}
+          />
+        </Box>
       ) : (
         <Box sx={{ height: 560, display: "grid", placeItems: "center", color: "grey.200" }}>
           <Typography variant="body1">Upload a panorama image for this room.</Typography>
