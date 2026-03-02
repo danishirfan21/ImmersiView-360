@@ -25,6 +25,7 @@ const theme = createTheme({
 function App() {
   const [user, setUser] = useState(null);
   const [currentTab, setCurrentTab] = useState(0);
+  const [editingTourId, setEditingTourId] = useState(null);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -52,6 +53,11 @@ function App() {
     );
   }
 
+  const handleEditTour = (tourId) => {
+    setEditingTourId(tourId);
+    setCurrentTab(0);
+  };
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -63,8 +69,8 @@ function App() {
         </Tabs>
       </Box>
       <Box sx={{ mt: 2 }}>
-        {currentTab === 0 && <TourManager />}
-        {currentTab === 1 && <AdminDashboard />}
+        {currentTab === 0 && <TourManager initialTourId={editingTourId} />}
+        {currentTab === 1 && <AdminDashboard onEditTour={handleEditTour} />}
       </Box>
     </ThemeProvider>
   );

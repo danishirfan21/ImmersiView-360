@@ -18,7 +18,7 @@ import RoomNavigator from "./RoomNavigator";
 
 const createId = () => `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-const TourManager = () => {
+const TourManager = ({ initialTourId }) => {
   const theme = useTheme();
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState("");
@@ -30,8 +30,10 @@ const TourManager = () => {
     const loadInitialTour = async () => {
       try {
         const tours = await api.get("/tours");
-        if (tours.length > 0) {
-          const { tour, rooms: tourRooms } = await api.get(`/tours/${tours[0]._id}`);
+        const tourToLoad = initialTourId || (tours.length > 0 ? tours[0]._id : null);
+
+        if (tourToLoad) {
+          const { tour, rooms: tourRooms } = await api.get(`/tours/${tourToLoad}`);
           setCurrentTour(tour);
           setRooms(tourRooms);
           if (tourRooms.length > 0) setActiveRoomId(tourRooms[0]._id);

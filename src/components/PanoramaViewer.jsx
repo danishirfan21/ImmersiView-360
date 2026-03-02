@@ -4,6 +4,9 @@ import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import CameraIcon from "@mui/icons-material/Camera";
 import { Pannellum } from "pannellum-react";
+import ThreeViewer from "./ThreeViewer";
+import ViewInArIcon from "@mui/icons-material/ViewInAr";
+import PanoramaIcon from "@mui/icons-material/Panorama";
 
 const createTooltipNode = (label, details, color) => {
   const wrapper = document.createElement("div");
@@ -53,6 +56,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [transitionOpacity, setTransitionOpacity] = useState(1);
+  const [useThreeJS, setUseThreeJS] = useState(false);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -72,6 +76,11 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
     setIsImageLoading(true);
     setTransitionOpacity(0);
 
+    // Progressive loading: use low-res as placeholder if available
+    if (room.resolutions?.low) {
+      setDisplaySrc(room.resolutions.low);
+    }
+
     const image = new Image();
     image.src = room.panoramaUrl;
 
@@ -80,7 +89,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
         setDisplaySrc(room.panoramaUrl);
         setIsImageLoading(false);
         setTransitionOpacity(1);
-      }, 300); // Give time for fade out
+      }, 300); // Give time for transition
     };
 
     image.onerror = () => {
@@ -88,7 +97,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
       setIsImageLoading(false);
       setTransitionOpacity(1);
     };
-  }, [room?._id, room?.panoramaUrl]);
+  }, [room?._id, room?.panoramaUrl, room?.resolutions]);
 
   const handleSaveView = useCallback(() => {
     if (!pannellumRef.current) return;
@@ -172,6 +181,11 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
           </Typography>
         </Box>
         <Stack direction="row" spacing={1} sx={{ pointerEvents: "auto" }}>
+          <Tooltip title={useThreeJS ? "Switch to Pannellum" : "Switch to Three.js"}>
+            <IconButton onClick={() => setUseThreeJS(!useThreeJS)} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
+              {useThreeJS ? <PanoramaIcon /> : <ViewInArIcon />}
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Set current view as default">
             <IconButton onClick={handleSaveView} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
               <CameraIcon />
@@ -194,18 +208,22 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
             opacity: transitionOpacity,
           }}
         >
-          <Pannellum
-            ref={pannellumRef}
-            width="100%"
-            height="560px"
-            image={displaySrc}
-          pitch={room.initialView?.pitch ?? 0}
-          yaw={room.initialView?.yaw ?? 0}
-          hfov={room.initialView?.hfov ?? 110}
-          autoLoad
-          showControls
-            hotSpots={panoramaHotspots}
-          />
+          {useThreeJS ? (
+            <ThreeViewer panoramaUrl={displaySrc} />
+          ) : (
+            <Pannellum
+              ref={pannellumRef}
+              width="100%"
+              height="560px"
+              image={displaySrc}
+              pitch={room.initialView?.pitch ?? 0}
+              yaw={room.initialView?.yaw ?? 0}
+              hfov={room.initialView?.hfov ?? 110}
+              autoLoad
+              showControls
+              hotSpots={panoramaHotspots}
+            />
+          )}
         </Box>
       ) : (
         <Box sx={{ height: 560, display: "grid", placeItems: "center", color: "grey.200" }}>

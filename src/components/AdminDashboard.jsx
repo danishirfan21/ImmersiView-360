@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Box, Typography, Paper, Grid, Card, CardContent, CardActions, Button, Divider } from '@mui/material';
 import { api } from '../api/client';
 
-const AdminDashboard = () => {
+const AdminDashboard = ({ onEditTour }) => {
   const [tours, setTours] = useState([]);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const AdminDashboard = () => {
                       </Typography>
                     </CardContent>
                     <CardActions>
-                      <Button size="small">Edit</Button>
+                      <Button size="small" onClick={() => onEditTour(tour._id)}>Edit</Button>
                       <Button size="small" color="error">Delete</Button>
                     </CardActions>
                   </Card>
