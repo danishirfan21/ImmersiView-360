@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, Card, CardContent, TextField, Typography, Container, Alert } from '@mui/material';
+import { Box, Button, Card, CardContent, TextField, Typography, Container, Alert, Stack } from '@mui/material';
 import { api } from '../api/client';
 
 const Login = ({ onLogin }) => {
@@ -20,43 +20,77 @@ const Login = ({ onLogin }) => {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Card sx={{ w: '100%', p: 2 }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        p: 2,
+      }}
+    >
+      <Container maxWidth="xs">
+        <Card sx={{ p: 3, borderRadius: 4 }}>
           <CardContent>
-            <Typography variant="h5" align="center" gutterBottom>
-              Admin Login
-            </Typography>
-            {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+            <Box sx={{ mb: 4, textAlign: 'center' }}>
+              <Typography variant="h4" gutterBottom color="primary">
+                ImmersiView 360
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Sign in to manage your virtual tours
+              </Typography>
+            </Box>
+
+            {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+
             <form onSubmit={handleSubmit}>
-              <TextField
-                fullWidth
-                label="Username"
-                margin="normal"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-              <TextField
-                fullWidth
-                label="Password"
-                type="password"
-                margin="normal"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <Button
-                fullWidth
-                variant="contained"
-                type="submit"
-                sx={{ mt: 3 }}
-              >
-                Login
-              </Button>
+              <Stack spacing={2.5}>
+                <TextField
+                  fullWidth
+                  label="Username"
+                  placeholder="Enter your username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  InputProps={{ sx: { borderRadius: 2 } }}
+                />
+                <TextField
+                  fullWidth
+                  label="Password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  InputProps={{ sx: { borderRadius: 2 } }}
+                />
+                <Button
+                  fullWidth
+                  variant="contained"
+                  type="submit"
+                  size="large"
+                  sx={{
+                    mt: 1,
+                    py: 1.5,
+                    fontSize: '1rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  Sign In
+                </Button>
+              </Stack>
             </form>
           </CardContent>
         </Card>
-      </Box>
-    </Container>
+        <Typography
+          variant="caption"
+          display="block"
+          align="center"
+          sx={{ mt: 3, color: 'rgba(255,255,255,0.5)' }}
+        >
+          &copy; {new Date().getFullYear()} ImmersiView 360. All rights reserved.
+        </Typography>
+      </Container>
+    </Box>
   );
 };
 
