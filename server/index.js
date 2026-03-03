@@ -22,12 +22,14 @@ mongoose.connect(MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.send('ImmersiView API is running');
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+}
 
 module.exports = app;
