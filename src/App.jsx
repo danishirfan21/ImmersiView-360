@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TourManager from './components/TourManager';
 import Login from './components/Login';
+import Register from './components/Register';
 import AdminDashboard from './components/AdminDashboard';
 import { CssBaseline, ThemeProvider, createTheme, Box, Tab, Tabs, AppBar, Toolbar, Typography, Button, Container, Stack } from '@mui/material';
 
@@ -70,6 +71,7 @@ const theme = createTheme({
 function App() {
   const [user, setUser] = useState(null);
   const [currentTab, setCurrentTab] = useState(0);
+  const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -92,7 +94,14 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <CssBaseline />
-        <Login onLogin={handleLogin} />
+        {isRegistering ? (
+          <Register onBackToLogin={() => setIsRegistering(false)} />
+        ) : (
+          <Login
+            onLogin={handleLogin}
+            onSwitchToRegister={() => setIsRegistering(true)}
+          />
+        )}
       </ThemeProvider>
     );
   }
