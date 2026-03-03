@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Box, Button, Card, CardContent, TextField, Typography, Container, Alert, Stack } from '@mui/material';
 import { api } from '../api/client';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, onSwitchToRegister }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -76,6 +76,13 @@ const Login = ({ onLogin }) => {
                   }}
                 >
                   Sign In
+                </Button>
+                <Button
+                  fullWidth
+                  variant="text"
+                  onClick={onSwitchToRegister}
+                >
+                  Don't have an account? Sign Up
                 </Button>
               </Stack>
             </form>
