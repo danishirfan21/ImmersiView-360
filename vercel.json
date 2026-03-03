@@ -1,18 +1,18 @@
 {
   "version": 2,
   "functions": {
-    "server/index.js": {
-      "runtime": "@vercel/node"
+    "server/index.cjs": {
+      "runtime": "nodejs18.x"
     }
   },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/index.js"
+      "destination": "/server/index.cjs"
     },
     {
       "source": "/uploads/(.*)",
-      "destination": "/server/index.js"
+      "destination": "/server/index.cjs"
     },
     {
       "source": "/(.*)",
