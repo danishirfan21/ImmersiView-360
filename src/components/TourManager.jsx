@@ -11,6 +11,7 @@ import {
   Typography,
   alpha,
   useTheme,
+  Divider,
 } from "@mui/material";
 import PanoramaViewer from "./PanoramaViewer";
 import HotspotEditor from "./HotspotEditor";
@@ -199,46 +200,60 @@ const TourManager = () => {
   };
 
   return (
-    <Box sx={{ p: { xs: 2, md: 4 }, maxWidth: 1400, mx: "auto" }}>
-      <Stack spacing={3}>
+    <Box sx={{ maxWidth: 1400, mx: "auto" }}>
+      <Stack spacing={4}>
         <Paper
           sx={{
-            p: 3,
+            p: 4,
             borderRadius: 4,
-            background: `linear-gradient(120deg, ${alpha(theme.palette.primary.main, 0.14)} 0%, ${alpha(
-              theme.palette.common.white,
-              0.9
-            )} 100%)`,
+            bgcolor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider',
           }}
         >
-          <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ xs: "stretch", md: "center" }}>
+          <Stack direction={{ xs: "column", lg: "row" }} spacing={3} alignItems={{ xs: "stretch", lg: "center" }}>
             <Box sx={{ flex: 1 }}>
-              <Typography variant="h4" fontWeight={700}>
-                ImmersiView 360 · Tour Admin
+              <Typography variant="h4" gutterBottom>
+                Tour Editor
               </Typography>
               <Typography color="text.secondary">
-                Upload panoramas, link rooms with hotspots, and craft a smooth property walkthrough.
+                {currentTour?.name || 'Loading tour...'}
               </Typography>
             </Box>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="center">
               <Stack direction="row" spacing={1}>
-                <Button variant="outlined" color="inherit" size="small" onClick={exportTour}>
-                  Export
+                <Button
+                  variant="outlined"
+                  size="medium"
+                  onClick={exportTour}
+                  sx={{ color: 'text.primary', borderColor: 'divider' }}
+                >
+                  Export JSON
                 </Button>
-                <Button variant="outlined" color="inherit" size="small" component="label">
-                  Import
+                <Button
+                  variant="outlined"
+                  size="medium"
+                  component="label"
+                  sx={{ color: 'text.primary', borderColor: 'divider' }}
+                >
+                  Import JSON
                   <input type="file" accept="application/json" hidden onChange={importTour} />
                 </Button>
               </Stack>
-              <Stack direction="row" spacing={1.5}>
+
+              <Divider orientation="vertical" flexItem sx={{ display: { xs: 'none', sm: 'block' } }} />
+
+              <Stack direction="row" spacing={1}>
                 <TextField
                   size="small"
-                  label="Room name"
+                  placeholder="New room name"
                   value={newRoomName}
                   onChange={(event) => setNewRoomName(event.target.value)}
+                  sx={{ width: 200 }}
                 />
-                <Button variant="contained" onClick={addRoom}>
-                  Create room
+                <Button variant="contained" onClick={addRoom} sx={{ whiteSpace: 'nowrap' }}>
+                  Add Room
                 </Button>
               </Stack>
             </Stack>
@@ -255,7 +270,18 @@ const TourManager = () => {
         />
 
         {activeRoom ? (
-          <Alert severity="info">Tip: use yaw/pitch values to place hotspots. Example: yaw 45, pitch -5.</Alert>
+          <Alert
+            severity="info"
+            sx={{
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'info.light',
+              bgcolor: alpha(theme.palette.info.main, 0.05),
+              color: 'info.dark'
+            }}
+          >
+            Tip: Use yaw and pitch values to place hotspots precisely. Example: yaw 45, pitch -5.
+          </Alert>
         ) : null}
 
         <Grid container spacing={3}>
@@ -279,17 +305,28 @@ const TourManager = () => {
 
           <Grid item xs={12} lg={4}>
             <Stack spacing={2}>
-              <Paper sx={{ p: 2.5, borderRadius: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Panorama upload
+              <Paper sx={{ p: 3, borderRadius: 4 }}>
+                <Typography variant="h6" gutterBottom fontWeight={600}>
+                  Panorama Image
                 </Typography>
-                <Button variant="outlined" component="label" fullWidth disabled={!activeRoom}>
-                  Select 360 image
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                  Upload a 2:1 equirectangular image for the current room.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  fullWidth
+                  disabled={!activeRoom}
+                  sx={{
+                    py: 1.5,
+                    borderStyle: 'dashed',
+                    borderWidth: 2,
+                    '&:hover': { borderWidth: 2 }
+                  }}
+                >
+                  {activeRoom?.panoramaUrl ? 'Replace Image' : 'Select 360 Image'}
                   <input type="file" accept="image/*" hidden onChange={onUploadPanorama} />
                 </Button>
-                <Typography mt={1} variant="caption" color="text.secondary">
-                  For production use, send files to Node/Express and store in AWS S3 with compression and progressive variants.
-                </Typography>
               </Paper>
 
               <HotspotEditor
