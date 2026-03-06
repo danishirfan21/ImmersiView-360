@@ -181,14 +181,6 @@ const PanoramaViewer = ({
     return [...navigationHotspots, ...infoMarkers];
   }, [onNavigateRoom, room, roomMap]);
 
-  if (!room) {
-    return (
-      <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
-        <Typography variant="h6">Create your first room to start a tour.</Typography>
-      </Box>
-    );
-  }
-
   const handlePannellumLoad = useCallback(() => {
     if (!pannellumRef.current) return;
     const viewer = pannellumRef.current.getViewer();
@@ -215,6 +207,14 @@ const PanoramaViewer = ({
   }, [isEditing, onPanoramaClick, displaySrc]);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
+
+  if (!room) {
+    return (
+      <Box sx={{ p: 4, textAlign: "center", color: "text.secondary" }}>
+        <Typography variant="h6">Create your first room to start a tour.</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box
