@@ -6,6 +6,7 @@ import { Box, Typography } from '@mui/material';
 
 const Scene = ({ url }) => {
   const texture = useTexture(url);
+  texture.colorSpace = THREE.SRGBColorSpace;
   return (
     <Sphere args={[500, 60, 40]} scale={[-1, 1, 1]}>
       <meshBasicMaterial map={texture} side={THREE.DoubleSide} />

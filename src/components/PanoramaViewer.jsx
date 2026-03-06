@@ -73,6 +73,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
     setTransitionOpacity(0);
 
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.src = room.panoramaUrl;
 
     image.onload = () => {
@@ -199,11 +200,12 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
             width="100%"
             height="560px"
             image={displaySrc}
-          pitch={room.initialView?.pitch ?? 0}
-          yaw={room.initialView?.yaw ?? 0}
-          hfov={room.initialView?.hfov ?? 110}
-          autoLoad
-          showControls
+            crossOrigin="anonymous"
+            pitch={room.initialView?.pitch ?? 0}
+            yaw={room.initialView?.yaw ?? 0}
+            hfov={room.initialView?.hfov ?? 110}
+            autoLoad
+            showControls
             hotSpots={panoramaHotspots}
           />
         </Box>
