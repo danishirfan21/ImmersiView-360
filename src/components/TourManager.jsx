@@ -191,7 +191,7 @@ const TourManager = () => {
         const content = JSON.parse(e.target.result);
         if (Array.isArray(content)) {
           setRooms(content);
-          if (content.length > 0) setActiveRoomId(content[0].id);
+          if (content.length > 0) setActiveRoomId(content[0]._id || content[0].id);
         }
       } catch (err) {
         alert("Failed to parse tour file. Make sure it is a valid JSON array.");

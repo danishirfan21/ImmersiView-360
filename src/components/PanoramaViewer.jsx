@@ -108,13 +108,13 @@ const PanoramaViewer = ({
     if (!pannellumRef.current) return;
     const viewer = pannellumRef.current.getViewer();
     if (viewer) {
-      onUpdateInitialView?.(room.id, {
+      onUpdateInitialView?.(room._id, {
         pitch: viewer.getPitch(),
         yaw: viewer.getYaw(),
         hfov: viewer.getHfov(),
       });
     }
-  }, [onUpdateInitialView, room?.id]);
+  }, [onUpdateInitialView, room?._id]);
 
   const toggleFullscreen = useCallback(async () => {
     if (!rootRef.current) return;

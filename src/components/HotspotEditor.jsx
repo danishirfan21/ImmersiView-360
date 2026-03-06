@@ -43,8 +43,8 @@ const HotspotEditor = ({
   }, [lastClickedCoords]);
 
   const linkableRooms = useMemo(
-    () => rooms.filter((candidateRoom) => candidateRoom.id !== room?.id),
-    [room?.id, rooms]
+    () => rooms.filter((candidateRoom) => candidateRoom._id !== room?._id),
+    [room?._id, rooms]
   );
 
   if (!room) {
@@ -102,7 +102,7 @@ const HotspotEditor = ({
                 onChange={(event) => setHotspotForm((prev) => ({ ...prev, targetRoomId: event.target.value }))}
               >
                 {linkableRooms.map((candidate) => (
-                  <MenuItem key={candidate.id} value={candidate.id}>
+                  <MenuItem key={candidate._id} value={candidate._id}>
                     {candidate.name}
                   </MenuItem>
                 ))}
