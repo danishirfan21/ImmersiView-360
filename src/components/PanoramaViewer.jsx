@@ -178,11 +178,6 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
               <CameraIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
-            <IconButton onClick={toggleFullscreen} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
-              {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-            </IconButton>
-          </Tooltip>
         </Stack>
       </Stack>
 
