@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import TourManager from './components/TourManager';
 import Login from './components/Login';
 import Register from './components/Register';
 import AdminDashboard from './components/AdminDashboard';
+import LandingPage from './components/LandingPage';
+import Outro from './components/Outro';
 import { CssBaseline, ThemeProvider, createTheme, Box, Tab, Tabs, AppBar, Toolbar, Typography, Button, Container, Stack } from '@mui/material';
 
 const theme = createTheme({
@@ -68,9 +71,73 @@ const theme = createTheme({
   },
 });
 
+const AdminLayout = ({ user, handleLogout }) => {
+  const [currentTab, setCurrentTab] = useState(0);
+
+  if (!user) return <Navigate to="/login" />;
+
+  return (
+    <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
+      <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Container maxWidth="xl">
+          <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+            <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>
+              ImmersiView 360
+            </Typography>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                color={currentTab === 0 ? "primary" : "inherit"}
+                variant={currentTab === 0 ? "contained" : "text"}
+                onClick={() => setCurrentTab(0)}
+                sx={{
+                  px: 2,
+                  ...(currentTab === 0 && {
+                    bgcolor: 'rgba(15, 23, 42, 0.05)',
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.1)' }
+                  })
+                }}
+              >
+                Tour Editor
+              </Button>
+              <Button
+                color={currentTab === 1 ? "primary" : "inherit"}
+                variant={currentTab === 1 ? "contained" : "text"}
+                onClick={() => setCurrentTab(1)}
+                sx={{
+                  px: 2,
+                  ...(currentTab === 1 && {
+                    bgcolor: 'rgba(15, 23, 42, 0.05)',
+                    color: 'primary.main',
+                    '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.1)' }
+                  })
+                }}
+              >
+                Dashboard
+              </Button>
+              <Button
+                color="error"
+                onClick={handleLogout}
+                sx={{ ml: 2 }}
+              >
+                Logout
+              </Button>
+            </Box>
+          </Toolbar>
+        </Container>
+      </AppBar>
+
+      <Container maxWidth="xl" sx={{ mt: 4, pb: 4 }}>
+        {currentTab === 0 && <TourManager />}
+        {currentTab === 1 && <AdminDashboard />}
+      </Container>
+    </Box>
+  );
+};
+
 function App() {
   const [user, setUser] = useState(null);
-  const [currentTab, setCurrentTab] = useState(0);
   const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
@@ -90,81 +157,32 @@ function App() {
     setUser(null);
   };
 
-  if (!user) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {isRegistering ? (
-          <Register onBackToLogin={() => setIsRegistering(false)} />
-        ) : (
-          <Login
-            onLogin={handleLogin}
-            onSwitchToRegister={() => setIsRegistering(true)}
-          />
-        )}
-      </ThemeProvider>
-    );
-  }
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
-        <AppBar position="static" color="inherit" elevation={0} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Container maxWidth="xl">
-            <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
-              <Typography variant="h5" color="primary" sx={{ fontWeight: 800 }}>
-                ImmersiView 360
-              </Typography>
-
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button
-                  color={currentTab === 0 ? "primary" : "inherit"}
-                  variant={currentTab === 0 ? "contained" : "text"}
-                  onClick={() => setCurrentTab(0)}
-                  sx={{
-                    px: 2,
-                    ...(currentTab === 0 && {
-                      bgcolor: 'rgba(15, 23, 42, 0.05)',
-                      color: 'primary.main',
-                      '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.1)' }
-                    })
-                  }}
-                >
-                  Tour Editor
-                </Button>
-                <Button
-                  color={currentTab === 1 ? "primary" : "inherit"}
-                  variant={currentTab === 1 ? "contained" : "text"}
-                  onClick={() => setCurrentTab(1)}
-                  sx={{
-                    px: 2,
-                    ...(currentTab === 1 && {
-                      bgcolor: 'rgba(15, 23, 42, 0.05)',
-                      color: 'primary.main',
-                      '&:hover': { bgcolor: 'rgba(15, 23, 42, 0.1)' }
-                    })
-                  }}
-                >
-                  Dashboard
-                </Button>
-                <Button
-                  color="error"
-                  onClick={handleLogout}
-                  sx={{ ml: 2 }}
-                >
-                  Logout
-                </Button>
-              </Box>
-            </Toolbar>
-          </Container>
-        </AppBar>
-
-        <Container maxWidth="xl" sx={{ mt: 4, pb: 4 }}>
-          {currentTab === 0 && <TourManager />}
-          {currentTab === 1 && <AdminDashboard />}
-        </Container>
-      </Box>
+      <Router>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/outro" element={<Outro />} />
+          <Route
+            path="/login"
+            element={
+              user ? <Navigate to="/admin" /> : (
+                isRegistering ? (
+                  <Register onBackToLogin={() => setIsRegistering(false)} />
+                ) : (
+                  <Login
+                    onLogin={handleLogin}
+                    onSwitchToRegister={() => setIsRegistering(true)}
+                  />
+                )
+              )
+            }
+          />
+          <Route path="/admin" element={<AdminLayout user={user} handleLogout={handleLogout} />} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </Router>
     </ThemeProvider>
   );
 }

@@ -26,6 +26,7 @@ const TourManager = () => {
   const [currentTour, setCurrentTour] = useState(null);
   const [newRoomName, setNewRoomName] = useState("");
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [lastClickedCoords, setLastClickedCoords] = useState(null);
 
   useEffect(() => {
     const loadInitialTour = async () => {
@@ -298,6 +299,8 @@ const TourManager = () => {
                   roomMap={roomMap}
                   onNavigateRoom={navigateWithTransition}
                   onUpdateInitialView={updateInitialView}
+                  isEditing={true}
+                  onPanoramaClick={setLastClickedCoords}
                 />
               </Box>
             </Box>
@@ -336,6 +339,7 @@ const TourManager = () => {
                 onAddInfoMarker={addInfoMarker}
                 onDeleteHotspot={deleteHotspot}
                 onDeleteInfoMarker={deleteInfoMarker}
+                lastClickedCoords={lastClickedCoords}
               />
             </Stack>
           </Grid>

@@ -30,9 +30,17 @@ const HotspotEditor = ({
   onAddInfoMarker,
   onDeleteHotspot,
   onDeleteInfoMarker,
+  lastClickedCoords
 }) => {
   const [hotspotForm, setHotspotForm] = useState(initialHotspot);
   const [markerForm, setMarkerForm] = useState(initialMarker);
+
+  React.useEffect(() => {
+    if (lastClickedCoords) {
+      setHotspotForm(prev => ({ ...prev, yaw: Math.round(lastClickedCoords.yaw), pitch: Math.round(lastClickedCoords.pitch) }));
+      setMarkerForm(prev => ({ ...prev, yaw: Math.round(lastClickedCoords.yaw), pitch: Math.round(lastClickedCoords.pitch) }));
+    }
+  }, [lastClickedCoords]);
 
   const linkableRooms = useMemo(
     () => rooms.filter((candidateRoom) => candidateRoom.id !== room?.id),

@@ -46,13 +46,26 @@ const createTooltipNode = (label, details, color) => {
   return wrapper;
 };
 
-const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) => {
+const PanoramaViewer = ({
+  room,
+  roomMap,
+  onNavigateRoom,
+  onUpdateInitialView,
+  isEditing = false,
+  onPanoramaClick,
+  autoRotate = 0,
+  customHfov,
+  isPublic = false,
+  containerHeight
+}) => {
   const rootRef = useRef(null);
   const pannellumRef = useRef(null);
+  const viewerInstance = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [transitionOpacity, setTransitionOpacity] = useState(1);
+  const [isZooming, setIsZooming] = useState(false);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -114,6 +127,27 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
     await rootRef.current.requestFullscreen();
   }, []);
 
+  const handleHotspotClick = useCallback((targetRoomId, pitch, yaw) => {
+    if (!targetRoomId) return;
+
+    const viewer = pannellumRef.current?.getViewer();
+    if (viewer) {
+      // Cinematic transition: Zoom in first
+      setIsZooming(true);
+      viewer.lookAt(pitch, yaw, viewer.getHfov() * 0.7, 500);
+
+      setTimeout(() => {
+        setTransitionOpacity(0);
+        setTimeout(() => {
+          onNavigateRoom?.(targetRoomId);
+          setIsZooming(false);
+        }, 500);
+      }, 500);
+    } else {
+      onNavigateRoom?.(targetRoomId);
+    }
+  }, [onNavigateRoom]);
+
   const panoramaHotspots = useMemo(() => {
     if (!room) return [];
 
@@ -131,11 +165,7 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
           )
         );
       },
-      clickHandlerFunc: () => {
-        if (hotspot.targetRoomId) {
-          onNavigateRoom?.(hotspot.targetRoomId);
-        }
-      },
+      clickHandlerFunc: () => handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
     }));
 
     const infoMarkers = (room.infoMarkers || []).map((marker) => ({
@@ -159,27 +189,65 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
     );
   }
 
+  const handlePannellumLoad = useCallback(() => {
+    if (!pannellumRef.current) return;
+    const viewer = pannellumRef.current.getViewer();
+    if (viewer) {
+      viewerInstance.current = viewer;
+    }
+  }, []);
+
+  useEffect(() => {
+    const viewer = viewerInstance.current || pannellumRef.current?.getViewer();
+    if (!viewer) return;
+
+    const handler = (e) => {
+      if (isEditing) {
+        const [pitch, yaw] = viewer.mouseEventToCoords(e);
+        onPanoramaClick?.({ pitch, yaw });
+      }
+    };
+
+    viewer.on('mousedown', handler);
+    return () => {
+      viewer.off('mousedown', handler);
+    };
+  }, [isEditing, onPanoramaClick, displaySrc]);
+
+  const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
+
   return (
-    <Box ref={rootRef} sx={{ position: "relative", borderRadius: 3, overflow: "hidden", bgcolor: "grey.900" }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ position: "absolute", zIndex: 2, top: 12, left: 12, right: 12, pointerEvents: "none" }}
-      >
-        <Box sx={{ bgcolor: "rgba(17,24,39,0.6)", px: 1.5, py: 0.5, borderRadius: 2, pointerEvents: "auto" }}>
-          <Typography variant="subtitle2" color="common.white">
-            {room.name}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1} sx={{ pointerEvents: "auto" }}>
-          <Tooltip title="Set current view as default">
-            <IconButton onClick={handleSaveView} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
-              <CameraIcon />
-            </IconButton>
-          </Tooltip>
+    <Box
+      ref={rootRef}
+      sx={{
+        position: "relative",
+        borderRadius: isPublic ? 0 : 3,
+        overflow: "hidden",
+        bgcolor: "grey.900",
+        height: finalHeight
+      }}
+    >
+      {!isPublic && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="space-between"
+          sx={{ position: "absolute", zIndex: 2, top: 12, left: 12, right: 12, pointerEvents: "none" }}
+        >
+          <Box sx={{ bgcolor: "rgba(17,24,39,0.6)", px: 1.5, py: 0.5, borderRadius: 2, pointerEvents: "auto" }}>
+            <Typography variant="subtitle2" color="common.white">
+              {room.name}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ pointerEvents: "auto" }}>
+            <Tooltip title="Set current view as default">
+              <IconButton onClick={handleSaveView} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
+                <CameraIcon />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </Stack>
-      </Stack>
+      )}
 
       {isImageLoading && <LinearProgress sx={{ position: "absolute", zIndex: 3, top: 0, left: 0, right: 0 }} />}
 
@@ -188,19 +256,25 @@ const PanoramaViewer = ({ room, roomMap, onNavigateRoom, onUpdateInitialView }) 
           sx={{
             transition: "opacity 500ms ease-in-out",
             opacity: transitionOpacity,
+            height: "100%",
+            '& .pnlm-container': {
+              height: `${finalHeight} !important`
+            }
           }}
         >
           <Pannellum
             ref={pannellumRef}
             width="100%"
-            height="560px"
+            height={finalHeight}
             image={displaySrc}
             crossOrigin="anonymous"
+            onLoad={handlePannellumLoad}
             pitch={room.initialView?.pitch ?? 0}
             yaw={room.initialView?.yaw ?? 0}
-            hfov={room.initialView?.hfov ?? 110}
+            hfov={customHfov ?? (room.initialView?.hfov ?? 110)}
             autoLoad
-            showControls
+            autoRotate={autoRotate}
+            showControls={!isPublic}
             hotSpots={panoramaHotspots}
           />
         </Box>
