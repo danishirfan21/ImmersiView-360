@@ -95,8 +95,22 @@ const TourManager = ({ initialTourId }) => {
   const patchActiveRoom = async (recipe) => {
     if (!activeRoom) return;
     const updatedRoomData = recipe(activeRoom);
+
+    // Strip the temporary client-side _id from subdocuments before sending to the server.
+    // Mongoose auto-assigns real ObjectId _id values to subdocuments on save;
+    // sending our locally-generated timestamp string causes a CastError.
+    const sanitize = (arr) =>
+      (arr || []).map(({ _id, id, ...rest }) => rest);
+
+    const payload = {
+      ...updatedRoomData,
+      hotspots: sanitize(updatedRoomData.hotspots),
+      infoMarkers: sanitize(updatedRoomData.infoMarkers),
+    };
+
     try {
-      const updatedRoom = await api.patch(`/tours/rooms/${activeRoom._id}`, updatedRoomData);
+      const updatedRoom = await api.patch(`/tours/rooms/${activeRoom._id}`, payload);
+      // Replace local state with the server response, which now has proper MongoDB _id values
       setRooms((prev) => prev.map((room) => (room._id === activeRoom._id ? updatedRoom : room)));
     } catch (err) {
       console.error("Failed to update room", err);
