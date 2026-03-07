@@ -1,0 +1,66 @@
+.immersiview-hotspot {
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-radius: 50% !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    border: 2px solid #3b82f6 !important;
+    z-index: 5;
+}
+
+.immersiview-hotspot::after {
+    content: "➜";
+    color: #0f172a;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.immersiview-hotspot:hover {
+    transform: scale(1.15) !important;
+    background: #3b82f6 !important;
+    border-color: #fff !important;
+}
+
+.immersiview-hotspot:hover::after {
+    color: #fff;
+}
+
+.immersiview-marker {
+    width: 28px;
+    height: 28px;
+    background: #10b981 !important;
+    border-radius: 50% !important;
+    border: 2px solid #fff !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+    transition: transform 0.2s !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    z-index: 5;
+}
+
+.immersiview-marker::after {
+    content: "i";
+    color: #fff;
+    font-family: serif;
+    font-style: italic;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.immersiview-marker:hover {
+    transform: scale(1.15) !important;
+    background: #059669 !important;
+}
+
+/* Pannellum overrides */
+.pnlm-hotspot-base {
+    border: none !important;
+    background: none !important;
+}

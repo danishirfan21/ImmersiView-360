@@ -248,6 +248,7 @@ const PanoramaViewer = ({
 
       {displaySrc ? (
         <Box
+          key={`${room._id}-${room.hotspots?.length}-${room.infoMarkers?.length}`}
           sx={{
             transition: "opacity 500ms ease-in-out",
             opacity: transitionOpacity,
