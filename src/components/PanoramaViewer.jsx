@@ -155,6 +155,7 @@ const PanoramaViewer = ({
       id: hotspot._id || hotspot.id,
       pitch: hotspot.pitch,
       yaw: hotspot.yaw,
+      type: "custom", // Explicitly set type for custom behavior
       cssClass: "immersiview-hotspot",
       createTooltipFunc: (div) => {
         div.appendChild(
@@ -172,6 +173,7 @@ const PanoramaViewer = ({
       id: marker._id || marker.id,
       pitch: marker.pitch,
       yaw: marker.yaw,
+      type: "info", // Use standard info type for markers
       cssClass: "immersiview-marker",
       createTooltipFunc: (div) => {
         div.appendChild(createTooltipNode(marker.title || "Info", marker.description, "#34d399"));
@@ -248,7 +250,6 @@ const PanoramaViewer = ({
 
       {displaySrc ? (
         <Box
-          key={`${room._id}-${room.hotspots?.length}-${room.infoMarkers?.length}`}
           sx={{
             transition: "opacity 500ms ease-in-out",
             opacity: transitionOpacity,
@@ -259,6 +260,7 @@ const PanoramaViewer = ({
           }}
         >
           <Pannellum
+            key={`${room._id}-${room.hotspots?.length || 0}-${room.infoMarkers?.length || 0}`}
             ref={pannellumRef}
             width="100%"
             height={finalHeight}
@@ -271,7 +273,7 @@ const PanoramaViewer = ({
             autoLoad
             autoRotate={autoRotate}
             showControls={!isPublic}
-            hotSpots={panoramaHotspots}
+            hotspots={panoramaHotspots}
           />
         </Box>
       ) : (
