@@ -4,6 +4,7 @@ import {
   Button,
   Divider,
   FormControl,
+  FormHelperText,
   Grid,
   IconButton,
   InputLabel,
@@ -32,15 +33,24 @@ const HotspotEditor = ({
   onDeleteInfoMarker,
   lastClickedCoords
 }) => {
+  // Bug Fix 2: Track which section is "active" so panorama clicks only update the relevant form
+  const [activeSection, setActiveSection] = useState("hotspot");
   const [hotspotForm, setHotspotForm] = useState(initialHotspot);
   const [markerForm, setMarkerForm] = useState(initialMarker);
 
   React.useEffect(() => {
-    if (lastClickedCoords) {
-      setHotspotForm(prev => ({ ...prev, yaw: Math.round(lastClickedCoords.yaw), pitch: Math.round(lastClickedCoords.pitch) }));
-      setMarkerForm(prev => ({ ...prev, yaw: Math.round(lastClickedCoords.yaw), pitch: Math.round(lastClickedCoords.pitch) }));
+    if (!lastClickedCoords) return;
+    const coords = {
+      yaw: Math.round(lastClickedCoords.yaw * 100) / 100,
+      pitch: Math.round(lastClickedCoords.pitch * 100) / 100,
+    };
+    // Bug Fix 2: Only update the form for the currently active section
+    if (activeSection === "hotspot") {
+      setHotspotForm((prev) => ({ ...prev, ...coords }));
+    } else {
+      setMarkerForm((prev) => ({ ...prev, ...coords }));
     }
-  }, [lastClickedCoords]);
+  }, [lastClickedCoords]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const linkableRooms = useMemo(
     () => rooms.filter((candidateRoom) => candidateRoom._id !== room?._id),
@@ -58,10 +68,16 @@ const HotspotEditor = ({
   return (
     <Paper sx={{ p: 2.5, borderRadius: 3 }}>
       <Stack spacing={3}>
-        <Box>
+        {/* ── Navigation Hotspot ─────────────────────── */}
+        <Box
+          onClick={() => setActiveSection("hotspot")}
+          sx={{ cursor: "default" }}
+        >
           <Typography variant="h6">Navigation hotspot</Typography>
           <Typography variant="body2" color="text.secondary">
-            Link this room to another room with smooth transitions.
+            {activeSection === "hotspot"
+              ? "Panorama clicks will fill in yaw & pitch below."
+              : "Click here to activate — then click the panorama to set coordinates."}
           </Typography>
         </Box>
 
@@ -69,52 +85,69 @@ const HotspotEditor = ({
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
+              size="small"
               label="Label"
               value={hotspotForm.label}
+              onFocus={() => setActiveSection("hotspot")}
               onChange={(event) => setHotspotForm((prev) => ({ ...prev, label: event.target.value }))}
             />
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Yaw"
               value={hotspotForm.yaw}
+              onFocus={() => setActiveSection("hotspot")}
               onChange={(event) => setHotspotForm((prev) => ({ ...prev, yaw: Number(event.target.value) }))}
             />
           </Grid>
           <Grid item xs={6} sm={3}>
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Pitch"
               value={hotspotForm.pitch}
+              onFocus={() => setActiveSection("hotspot")}
               onChange={(event) => setHotspotForm((prev) => ({ ...prev, pitch: Number(event.target.value) }))}
             />
           </Grid>
           <Grid item xs={12}>
-            <FormControl fullWidth>
+            {/* Bug Fix 3: Show disabled placeholder when no linkable rooms exist */}
+            <FormControl fullWidth size="small">
               <InputLabel id="target-room">Target room</InputLabel>
               <Select
                 labelId="target-room"
                 label="Target room"
                 value={hotspotForm.targetRoomId}
+                onFocus={() => setActiveSection("hotspot")}
                 onChange={(event) => setHotspotForm((prev) => ({ ...prev, targetRoomId: event.target.value }))}
               >
-                {linkableRooms.map((candidate) => (
-                  <MenuItem key={candidate._id} value={candidate._id}>
-                    {candidate.name}
+                {linkableRooms.length === 0 ? (
+                  <MenuItem disabled value="">
+                    <em>No other rooms — add more rooms first</em>
                   </MenuItem>
-                ))}
+                ) : (
+                  linkableRooms.map((candidate) => (
+                    <MenuItem key={candidate._id} value={candidate._id}>
+                      {candidate.name}
+                    </MenuItem>
+                  ))
+                )}
               </Select>
+              {linkableRooms.length === 0 && (
+                <FormHelperText>You need at least 2 rooms to create a navigation hotspot.</FormHelperText>
+              )}
             </FormControl>
           </Grid>
         </Grid>
 
         <Button
           variant="contained"
+          disabled={!hotspotForm.targetRoomId || !hotspotForm.label}
           onClick={() => {
-            if (!hotspotForm.targetRoomId) return;
             onAddHotspot?.(hotspotForm);
             setHotspotForm(initialHotspot);
           }}
@@ -122,12 +155,45 @@ const HotspotEditor = ({
           Add hotspot
         </Button>
 
+        {room.hotspots?.length > 0 && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Existing Hotspots
+              </Typography>
+              <List size="small" disablePadding>
+                {room.hotspots.map((h) => (
+                  // Bug Fix 1: Use h._id || h.id to handle both Mongoose subdoc IDs and locally-created IDs
+                  <ListItem key={h._id || h.id} dense disableGutters>
+                    <ListItemText
+                      primary={h.label || "Go to room"}
+                      secondary={`Yaw: ${h.yaw} / Pitch: ${h.pitch}`}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton edge="end" size="small" onClick={() => onDeleteHotspot?.(h._id || h.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </>
+        )}
+
         <Divider />
 
-        <Box>
+        {/* ── Info Marker ────────────────────────────── */}
+        <Box
+          onClick={() => setActiveSection("marker")}
+          sx={{ cursor: "default" }}
+        >
           <Typography variant="h6">Info marker</Typography>
           <Typography variant="body2" color="text.secondary">
-            Show useful room details when users hover over markers.
+            {activeSection === "marker"
+              ? "Panorama clicks will fill in yaw & pitch below."
+              : "Click here to activate — then click the panorama to set coordinates."}
           </Typography>
         </Box>
 
@@ -135,36 +201,44 @@ const HotspotEditor = ({
           <Grid item xs={12}>
             <TextField
               fullWidth
+              size="small"
               label="Title"
               value={markerForm.title}
+              onFocus={() => setActiveSection("marker")}
               onChange={(event) => setMarkerForm((prev) => ({ ...prev, title: event.target.value }))}
             />
           </Grid>
           <Grid item xs={12}>
             <TextField
               fullWidth
+              size="small"
               multiline
               minRows={2}
               label="Description"
               value={markerForm.description}
+              onFocus={() => setActiveSection("marker")}
               onChange={(event) => setMarkerForm((prev) => ({ ...prev, description: event.target.value }))}
             />
           </Grid>
           <Grid item xs={6}>
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Yaw"
               value={markerForm.yaw}
+              onFocus={() => setActiveSection("marker")}
               onChange={(event) => setMarkerForm((prev) => ({ ...prev, yaw: Number(event.target.value) }))}
             />
           </Grid>
           <Grid item xs={6}>
             <TextField
               fullWidth
+              size="small"
               type="number"
               label="Pitch"
               value={markerForm.pitch}
+              onFocus={() => setActiveSection("marker")}
               onChange={(event) => setMarkerForm((prev) => ({ ...prev, pitch: Number(event.target.value) }))}
             />
           </Grid>
@@ -172,6 +246,7 @@ const HotspotEditor = ({
 
         <Button
           variant="outlined"
+          disabled={!markerForm.title}
           onClick={() => {
             onAddInfoMarker?.(markerForm);
             setMarkerForm(initialMarker);
@@ -180,52 +255,31 @@ const HotspotEditor = ({
           Add info marker
         </Button>
 
-        {(room.hotspots?.length > 0 || room.infoMarkers?.length > 0) && <Divider />}
-
-        {room.hotspots?.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Existing Hotspots
-            </Typography>
-            <List size="small" disablePadding>
-              {room.hotspots.map((h) => (
-                <ListItem key={h.id} dense disableGutters>
-                  <ListItemText
-                    primary={h.label || "Go to room"}
-                    secondary={`Yaw: ${h.yaw} / Pitch: ${h.pitch}`}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton edge="end" size="small" onClick={() => onDeleteHotspot?.(h.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          </Box>
-        )}
-
         {room.infoMarkers?.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>
-              Existing Markers
-            </Typography>
-            <List size="small" disablePadding>
-              {room.infoMarkers.map((m) => (
-                <ListItem key={m.id} dense disableGutters>
-                  <ListItemText
-                    primary={m.title || "Info"}
-                    secondary={`Yaw: ${m.yaw} / Pitch: ${m.pitch}`}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton edge="end" size="small" onClick={() => onDeleteInfoMarker?.(m.id)}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          </Box>
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="subtitle2" gutterBottom>
+                Existing Markers
+              </Typography>
+              <List size="small" disablePadding>
+                {room.infoMarkers.map((m) => (
+                  // Bug Fix 1: Use m._id || m.id to handle both Mongoose subdoc IDs and locally-created IDs
+                  <ListItem key={m._id || m.id} dense disableGutters>
+                    <ListItemText
+                      primary={m.title || "Info"}
+                      secondary={`Yaw: ${m.yaw} / Pitch: ${m.pitch}`}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton edge="end" size="small" onClick={() => onDeleteInfoMarker?.(m._id || m.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            </Box>
+          </>
         )}
       </Stack>
     </Paper>

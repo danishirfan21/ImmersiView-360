@@ -123,28 +123,30 @@ const TourManager = () => {
   const addHotspot = (hotspot) => {
     patchActiveRoom((room) => ({
       ...room,
-      hotspots: [...room.hotspots, { ...hotspot, id: createId() }],
+      // Bug Fix 4: guard against null/undefined hotspots from older API data
+      hotspots: [...(room.hotspots || []), { ...hotspot, _id: createId() }],
     }));
   };
 
   const addInfoMarker = (marker) => {
     patchActiveRoom((room) => ({
       ...room,
-      infoMarkers: [...room.infoMarkers, { ...marker, id: createId() }],
+      // Bug Fix 4: guard against null/undefined infoMarkers from older API data
+      infoMarkers: [...(room.infoMarkers || []), { ...marker, _id: createId() }],
     }));
   };
 
   const deleteHotspot = (hotspotId) => {
     patchActiveRoom((room) => ({
       ...room,
-      hotspots: room.hotspots.filter((h) => h.id !== hotspotId),
+      hotspots: (room.hotspots || []).filter((h) => (h._id || h.id) !== hotspotId),
     }));
   };
 
   const deleteInfoMarker = (markerId) => {
     patchActiveRoom((room) => ({
       ...room,
-      infoMarkers: room.infoMarkers.filter((m) => m.id !== markerId),
+      infoMarkers: (room.infoMarkers || []).filter((m) => (m._id || m.id) !== markerId),
     }));
   };
 
