@@ -49,6 +49,42 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Update a tour
+router.patch('/:id', auth, async (req, res) => {
+  try {
+    const { name, description } = req.body;
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (description !== undefined) update.description = description;
+    update.updatedAt = Date.now();
+
+    const tour = await Tour.findByIdAndUpdate(
+      req.params.id,
+      { $set: update },
+      { new: true, runValidators: true }
+    );
+    if (!tour) return res.status(404).json({ message: 'Tour not found' });
+    res.json(tour);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// Delete a tour (and its rooms)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const tour = await Tour.findByIdAndDelete(req.params.id);
+    if (!tour) return res.status(404).json({ message: 'Tour not found' });
+    
+    // Also delete all rooms associated with this tour
+    await Room.deleteMany({ tour: req.params.id });
+    
+    res.json({ message: 'Tour and associated rooms deleted' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // --- Room Routes ---
 
 // Add a room to a tour
@@ -69,7 +105,22 @@ router.post('/:tourId/rooms', auth, async (req, res) => {
 // Update a room
 router.patch('/rooms/:id', auth, async (req, res) => {
   try {
-    const room = await Room.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    // Bug Fix 1: Whitelist allowed fields to prevent arbitrary document overwrites
+    const { name, panoramaUrl, initialView, hotspots, infoMarkers } = req.body;
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (panoramaUrl !== undefined) update.panoramaUrl = panoramaUrl;
+    if (initialView !== undefined) update.initialView = initialView;
+    if (hotspots !== undefined) update.hotspots = hotspots;
+    if (infoMarkers !== undefined) update.infoMarkers = infoMarkers;
+
+    const room = await Room.findByIdAndUpdate(
+      req.params.id, 
+      { $set: update }, 
+      { new: true, runValidators: true } // Bug Fix 1: Enable schema validation
+    );
+    
+    if (!room) return res.status(404).json({ message: 'Room not found' });
     res.json(room);
   } catch (err) {
     res.status(400).json({ message: err.message });

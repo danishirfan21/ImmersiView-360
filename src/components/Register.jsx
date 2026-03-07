@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Box, Button, Card, CardContent, TextField, Typography, Container, Alert, Stack } from '@mui/material';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 
-const Register = ({ onBackToLogin }) => {
+const Register = () => {
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -22,7 +24,7 @@ const Register = ({ onBackToLogin }) => {
       await api.post('/auth/register', { username, password });
       setSuccess(true);
       setTimeout(() => {
-        onBackToLogin();
+        navigate('/login');
       }, 2000);
     } catch (err) {
       setError(err.message || 'Registration failed');
@@ -104,7 +106,8 @@ const Register = ({ onBackToLogin }) => {
                   <Button
                     fullWidth
                     variant="text"
-                    onClick={onBackToLogin}
+                    component={Link}
+                    to="/login"
                   >
                     Already have an account? Sign In
                   </Button>

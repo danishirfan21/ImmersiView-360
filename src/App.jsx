@@ -73,8 +73,14 @@ const theme = createTheme({
 
 const AdminLayout = ({ user, handleLogout }) => {
   const [currentTab, setCurrentTab] = useState(0);
+  const [editingTourId, setEditingTourId] = useState(null);
 
   if (!user) return <Navigate to="/login" />;
+
+  const handleSelectTour = (tourId) => {
+    setEditingTourId(tourId);
+    setCurrentTab(0); // Switch to Tour Editor tab
+  };
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -129,8 +135,8 @@ const AdminLayout = ({ user, handleLogout }) => {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ mt: 4, pb: 4 }}>
-        {currentTab === 0 && <TourManager />}
-        {currentTab === 1 && <AdminDashboard />}
+        {currentTab === 0 && <TourManager initialTourId={editingTourId} />}
+        {currentTab === 1 && <AdminDashboard onSelectTour={handleSelectTour} />}
       </Container>
     </Box>
   );
@@ -166,18 +172,11 @@ function App() {
           <Route path="/outro" element={<Outro />} />
           <Route
             path="/login"
-            element={
-              user ? <Navigate to="/admin" /> : (
-                isRegistering ? (
-                  <Register onBackToLogin={() => setIsRegistering(false)} />
-                ) : (
-                  <Login
-                    onLogin={handleLogin}
-                    onSwitchToRegister={() => setIsRegistering(true)}
-                  />
-                )
-              )
-            }
+            element={user ? <Navigate to="/admin" /> : <Login onLogin={handleLogin} />}
+          />
+          <Route
+            path="/register"
+            element={user ? <Navigate to="/admin" /> : <Register />}
           />
           <Route path="/admin" element={<AdminLayout user={user} handleLogout={handleLogout} />} />
           <Route path="*" element={<Navigate to="/" />} />

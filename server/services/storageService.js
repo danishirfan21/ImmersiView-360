@@ -3,13 +3,20 @@ const sharp = require('sharp');
 const path = require('path');
 const fs = require('fs');
 
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+let s3Client = null;
+
+const getS3Client = () => {
+  if (s3Client) return s3Client;
+  
+  s3Client = new S3Client({
+    region: process.env.AWS_REGION,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+  return s3Client;
+};
 
 const uploadToS3 = async (buffer, key, contentType) => {
   if (!process.env.AWS_BUCKET_NAME) {
@@ -29,7 +36,7 @@ const uploadToS3 = async (buffer, key, contentType) => {
     ContentType: contentType,
   });
 
-  await s3Client.send(command);
+  await getS3Client().send(command);
   return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
 };
 

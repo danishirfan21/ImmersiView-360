@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Box, Button, Card, CardContent, TextField, Typography, Container, Alert, Stack } from '@mui/material';
+import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 
-const Login = ({ onLogin, onSwitchToRegister }) => {
+const Login = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -80,7 +81,8 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
                 <Button
                   fullWidth
                   variant="text"
-                  onClick={onSwitchToRegister}
+                  component={Link}
+                  to="/register"
                 >
                   Don't have an account? Sign Up
                 </Button>

@@ -152,7 +152,7 @@ const PanoramaViewer = ({
     if (!room) return [];
 
     const navigationHotspots = (room.hotspots || []).map((hotspot) => ({
-      id: hotspot.id,
+      id: hotspot._id || hotspot.id,
       pitch: hotspot.pitch,
       yaw: hotspot.yaw,
       cssClass: "immersiview-hotspot",
@@ -169,7 +169,7 @@ const PanoramaViewer = ({
     }));
 
     const infoMarkers = (room.infoMarkers || []).map((marker) => ({
-      id: marker.id,
+      id: marker._id || marker.id,
       pitch: marker.pitch,
       yaw: marker.yaw,
       cssClass: "immersiview-marker",
@@ -181,30 +181,25 @@ const PanoramaViewer = ({
     return [...navigationHotspots, ...infoMarkers];
   }, [onNavigateRoom, room, roomMap]);
 
+  // Bug Fix 9: The click listener must be attached only after the viewer is fully loaded.
+  // We use handlePannellumLoad to ensure the viewer instance is ready.
   const handlePannellumLoad = useCallback(() => {
     if (!pannellumRef.current) return;
     const viewer = pannellumRef.current.getViewer();
     if (viewer) {
       viewerInstance.current = viewer;
+      
+      // Remove any existing listener before adding a new one
+      viewer.off('mousedown'); 
+
+      viewer.on('mousedown', (e) => {
+        if (isEditing) {
+          const [pitch, yaw] = viewer.mouseEventToCoords(e);
+          onPanoramaClick?.({ pitch, yaw });
+        }
+      });
     }
-  }, []);
-
-  useEffect(() => {
-    const viewer = viewerInstance.current || pannellumRef.current?.getViewer();
-    if (!viewer) return;
-
-    const handler = (e) => {
-      if (isEditing) {
-        const [pitch, yaw] = viewer.mouseEventToCoords(e);
-        onPanoramaClick?.({ pitch, yaw });
-      }
-    };
-
-    viewer.on('mousedown', handler);
-    return () => {
-      viewer.off('mousedown', handler);
-    };
-  }, [isEditing, onPanoramaClick, displaySrc]);
+  }, [isEditing, onPanoramaClick]);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
 

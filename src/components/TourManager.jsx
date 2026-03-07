@@ -12,6 +12,9 @@ import {
   alpha,
   useTheme,
   Divider,
+  CircularProgress,
+  Snackbar,
+  LinearProgress,
 } from "@mui/material";
 import PanoramaViewer from "./PanoramaViewer";
 import HotspotEditor from "./HotspotEditor";
@@ -19,7 +22,7 @@ import RoomNavigator from "./RoomNavigator";
 
 const createId = () => `${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
-const TourManager = () => {
+const TourManager = ({ initialTourId }) => {
   const theme = useTheme();
   const [rooms, setRooms] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState("");
@@ -28,26 +31,41 @@ const TourManager = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [lastClickedCoords, setLastClickedCoords] = useState(null);
 
+  // Bug Fix 11 & 12: Add loading and error feedback
+  const [loading, setLoading] = useState(true);       // initial tour load only
+  const [uploadLoading, setUploadLoading] = useState(false); // panorama upload only
+  const [errorMsg, setErrorMsg] = useState("");
+
   useEffect(() => {
     const loadInitialTour = async () => {
       try {
-        const tours = await api.get("/tours");
-        if (tours.length > 0) {
-          const { tour, rooms: tourRooms } = await api.get(`/tours/${tours[0]._id}`);
-          setCurrentTour(tour);
-          setRooms(tourRooms);
-          if (tourRooms.length > 0) setActiveRoomId(tourRooms[0]._id);
-        } else {
-          // Create a default tour if none exist
-          const newTour = await api.post("/tours", { name: "My First Tour" });
-          setCurrentTour(newTour);
+        setLoading(true);
+        setErrorMsg("");
+        let tourToLoadId = initialTourId;
+
+        if (!tourToLoadId) {
+          const tours = await api.get("/tours");
+          if (tours.length > 0) {
+            tourToLoadId = tours[0]._id;
+          } else {
+            const newTour = await api.post("/tours", { name: "My First Tour" });
+            tourToLoadId = newTour._id;
+          }
         }
+
+        const { tour, rooms: tourRooms } = await api.get(`/tours/${tourToLoadId}`);
+        setCurrentTour(tour);
+        setRooms(tourRooms);
+        if (tourRooms.length > 0) setActiveRoomId(tourRooms[0]._id);
       } catch (err) {
         console.error("Failed to load tour", err);
+        setErrorMsg("Failed to load tour. Please check your connection.");
+      } finally {
+        setLoading(false);
       }
     };
     loadInitialTour();
-  }, []);
+  }, [initialTourId]);
 
   const roomMap = useMemo(
     () => rooms.reduce((acc, room) => ({ ...acc, [room._id]: room }), {}),
@@ -70,6 +88,7 @@ const TourManager = () => {
       setNewRoomName("");
     } catch (err) {
       console.error("Failed to add room", err);
+      setErrorMsg("Failed to create room.");
     }
   };
 
@@ -81,10 +100,12 @@ const TourManager = () => {
       setRooms((prev) => prev.map((room) => (room._id === activeRoom._id ? updatedRoom : room)));
     } catch (err) {
       console.error("Failed to update room", err);
+      setErrorMsg("Failed to save changes.");
     }
   };
 
   const deleteRoom = async (roomId) => {
+    if (!window.confirm("Are you sure you want to delete this room?")) return;
     try {
       await api.delete(`/tours/rooms/${roomId}`);
       setRooms((prev) => prev.filter((room) => room._id !== roomId));
@@ -93,6 +114,7 @@ const TourManager = () => {
       }
     } catch (err) {
       console.error("Failed to delete room", err);
+      setErrorMsg("Failed to delete room.");
     }
   };
 
@@ -104,10 +126,14 @@ const TourManager = () => {
     formData.append("panorama", file);
 
     try {
+      setUploadLoading(true);
       const updatedRoom = await api.post(`/tours/rooms/${activeRoom._id}/panorama`, formData, true);
       setRooms((prev) => prev.map((room) => (room._id === activeRoom._id ? updatedRoom : room)));
     } catch (err) {
       console.error("Failed to upload panorama", err);
+      setErrorMsg("Failed to upload image.");
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -158,6 +184,7 @@ const TourManager = () => {
       );
     } catch (err) {
       console.error("Failed to update room name", err);
+      setErrorMsg("Failed to update room name.");
     }
   };
 
@@ -169,6 +196,7 @@ const TourManager = () => {
       );
     } catch (err) {
       console.error("Failed to update initial view", err);
+      setErrorMsg("Failed to update initial view.");
     }
   };
 
@@ -203,7 +231,23 @@ const TourManager = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1400, mx: "auto" }}>
+    <Box sx={{ maxWidth: 1400, mx: "auto", position: 'relative' }}>
+      {/* Initial load spinner — only shown before any tour content is available */}
+      {loading && (
+        <Box sx={{ 
+          display: 'flex', alignItems: 'center', justifyContent: 'center', py: 10
+        }}>
+          <CircularProgress size={60} thickness={4} />
+        </Box>
+      )}
+
+      {/* Error Alert */}
+      <Snackbar open={!!errorMsg} autoHideDuration={6000} onClose={() => setErrorMsg("")}>
+        <Alert onClose={() => setErrorMsg("")} severity="error" variant="filled" sx={{ width: '100%' }}>
+          {errorMsg}
+        </Alert>
+      </Snackbar>
+
       <Stack spacing={4}>
         <Paper
           sx={{
@@ -317,11 +361,12 @@ const TourManager = () => {
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   Upload a 2:1 equirectangular image for the current room.
                 </Typography>
+                {uploadLoading && <LinearProgress sx={{ mb: 1, borderRadius: 1 }} />}
                 <Button
                   variant="outlined"
                   component="label"
                   fullWidth
-                  disabled={!activeRoom}
+                  disabled={!activeRoom || uploadLoading}
                   sx={{
                     py: 1.5,
                     borderStyle: 'dashed',
@@ -329,7 +374,7 @@ const TourManager = () => {
                     '&:hover': { borderWidth: 2 }
                   }}
                 >
-                  {activeRoom?.panoramaUrl ? 'Replace Image' : 'Select 360 Image'}
+                  {uploadLoading ? 'Uploading...' : activeRoom?.panoramaUrl ? 'Replace Image' : 'Select 360 Image'}
                   <input type="file" accept="image/*" hidden onChange={onUploadPanorama} />
                 </Button>
               </Paper>
