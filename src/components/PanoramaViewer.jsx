@@ -166,47 +166,57 @@ const PanoramaViewer = ({
       }
     });
 
-    // Add navigation hotspots imperatively
-    (room?.hotspots || []).forEach((hotspot) => {
-      try {
-        viewer.addHotSpot({
-          id: String(hotspot._id || hotspot.id || Math.random()),
-          pitch: Number(hotspot.pitch) || 0,
-          yaw: Number(hotspot.yaw) || 0,
-          type: 'custom',
-          cssClass: 'immersiview-hotspot',
-          createTooltipFunc: (div) => {
-            div.appendChild(
-              createTooltipNode(
-                hotspot.label || 'Go to room',
-                roomMap?.[hotspot.targetRoomId]?.name || 'Linked room',
-                '#60a5fa'
-              )
-            );
-          },
-          clickHandlerFunc: () =>
-            handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
-        });
-      } catch (_) { /* ignore duplicate id errors */ }
-    });
+    // Delay hotspot addition slightly — Pannellum's internal coordinate system
+    // may not be fully ready when onLoad fires. Without this delay, pitch/yaw → pixel
+    // conversion returns (0,0) and hotspots collapse to the top-left corner.
+    // Opening DevTools "fixes" it because the resize event forces recalculation.
+    setTimeout(() => {
+      // Add navigation hotspots imperatively
+      (room?.hotspots || []).forEach((hotspot) => {
+        try {
+          viewer.addHotSpot({
+            id: String(hotspot._id || hotspot.id || Math.random()),
+            pitch: Number(hotspot.pitch) || 0,
+            yaw: Number(hotspot.yaw) || 0,
+            type: 'custom',
+            cssClass: 'immersiview-hotspot',
+            createTooltipFunc: (div) => {
+              div.appendChild(
+                createTooltipNode(
+                  hotspot.label || 'Go to room',
+                  roomMap?.[hotspot.targetRoomId]?.name || 'Linked room',
+                  '#60a5fa'
+                )
+              );
+            },
+            clickHandlerFunc: () =>
+              handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
+          });
+        } catch (_) { /* ignore duplicate id errors */ }
+      });
 
-    // Add info markers imperatively
-    (room?.infoMarkers || []).forEach((marker) => {
-      try {
-        viewer.addHotSpot({
-          id: String(marker._id || marker.id || Math.random()),
-          pitch: Number(marker.pitch) || 0,
-          yaw: Number(marker.yaw) || 0,
-          type: 'custom',
-          cssClass: 'immersiview-marker',
-          createTooltipFunc: (div) => {
-            div.appendChild(
-              createTooltipNode(marker.title || 'Info', marker.description, '#34d399')
-            );
-          },
-        });
-      } catch (_) { /* ignore duplicate id errors */ }
-    });
+      // Add info markers imperatively
+      (room?.infoMarkers || []).forEach((marker) => {
+        try {
+          viewer.addHotSpot({
+            id: String(marker._id || marker.id || Math.random()),
+            pitch: Number(marker.pitch) || 0,
+            yaw: Number(marker.yaw) || 0,
+            type: 'custom',
+            cssClass: 'immersiview-marker',
+            createTooltipFunc: (div) => {
+              div.appendChild(
+                createTooltipNode(marker.title || 'Info', marker.description, '#34d399')
+              );
+            },
+          });
+        } catch (_) { /* ignore duplicate id errors */ }
+      });
+
+      // Force Pannellum to recalculate all hotspot screen positions.
+      // This is the same recalculation that opening DevTools accidentally triggers.
+      window.dispatchEvent(new Event('resize'));
+    }, 150);
   }, [isEditing, onPanoramaClick, room, roomMap, handleHotspotClick]);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
