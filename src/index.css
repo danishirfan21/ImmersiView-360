@@ -67,7 +67,6 @@
 
 /* Pannellum overrides */
 .pnlm-hotspot-base {
-    position: absolute !important;
     border: none !important;
     background: none !important;
 }

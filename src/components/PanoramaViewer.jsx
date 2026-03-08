@@ -213,9 +213,15 @@ const PanoramaViewer = ({
         } catch (_) { /* ignore duplicate id errors */ }
       });
 
-      // Force Pannellum to recalculate all hotspot screen positions.
-      // This is the same recalculation that opening DevTools accidentally triggers.
-      window.dispatchEvent(new Event('resize'));
+      // Layout Stabilization Loop:
+      // Force several recalculations over 1.5 seconds to ensure Pannellum
+      // captures the final container size after any transitions settle.
+      let count = 0;
+      const interval = setInterval(() => {
+        viewer.resize();
+        window.dispatchEvent(new Event('resize'));
+        if (++count > 15) clearInterval(interval);
+      }, 100);
     }, 150);
   }, [isEditing, onPanoramaClick, room, roomMap, handleHotspotClick]);
 
@@ -276,7 +282,7 @@ const PanoramaViewer = ({
           }}
         >
           <Pannellum
-            key={`${room._id}-${room.hotspots?.length || 0}-${room.infoMarkers?.length || 0}`}
+            key={`${room._id}-${room.panoramaUrl}`}
             ref={pannellumRef}
             width="100%"
             height={finalHeight}
