@@ -60,12 +60,22 @@ const PanoramaViewer = ({
 }) => {
   const rootRef = useRef(null);
   const pannellumRef = useRef(null);
-  const viewerInstance = useRef(null);
+  const [viewer, setViewer] = useState(null);
+  const intervalRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
   const [transitionOpacity, setTransitionOpacity] = useState(1);
   const [isZooming, setIsZooming] = useState(false);
+
+  // Use refs for props used in event listeners to avoid stale closures
+  const isEditingRef = useRef(isEditing);
+  const onPanoramaClickRef = useRef(onPanoramaClick);
+  const onNavigateRoomRef = useRef(onNavigateRoom);
+
+  useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
+  useEffect(() => { onPanoramaClickRef.current = onPanoramaClick; }, [onPanoramaClick]);
+  useEffect(() => { onNavigateRoomRef.current = onNavigateRoom; }, [onNavigateRoom]);
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -73,7 +83,10 @@ const PanoramaViewer = ({
     };
 
     document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -94,7 +107,7 @@ const PanoramaViewer = ({
         setDisplaySrc(room.panoramaUrl);
         setIsImageLoading(false);
         setTransitionOpacity(1);
-      }, 300); // Give time for fade out
+      }, 300);
     };
 
     image.onerror = () => {
@@ -106,12 +119,12 @@ const PanoramaViewer = ({
 
   const handleSaveView = useCallback(() => {
     if (!pannellumRef.current) return;
-    const viewer = pannellumRef.current.getViewer();
-    if (viewer) {
+    const v = pannellumRef.current.getViewer();
+    if (v) {
       onUpdateInitialView?.(room._id, {
-        pitch: viewer.getPitch(),
-        yaw: viewer.getYaw(),
-        hfov: viewer.getHfov(),
+        pitch: v.getPitch(),
+        yaw: v.getYaw(),
+        hfov: v.getHfov(),
       });
     }
   }, [onUpdateInitialView, room?._id]);
@@ -130,100 +143,105 @@ const PanoramaViewer = ({
   const handleHotspotClick = useCallback((targetRoomId, pitch, yaw) => {
     if (!targetRoomId) return;
 
-    const viewer = pannellumRef.current?.getViewer();
     if (viewer) {
-      // Cinematic transition: Zoom in first
       setIsZooming(true);
       viewer.lookAt(pitch, yaw, viewer.getHfov() * 0.7, 500);
 
       setTimeout(() => {
         setTransitionOpacity(0);
         setTimeout(() => {
-          onNavigateRoom?.(targetRoomId);
+          onNavigateRoomRef.current?.(targetRoomId);
           setIsZooming(false);
         }, 500);
       }, 500);
     } else {
-      onNavigateRoom?.(targetRoomId);
+      onNavigateRoomRef.current?.(targetRoomId);
     }
-  }, [onNavigateRoom]);
+  }, [viewer]);
 
-  // Instead of relying on pannellum-react's hotspot prop (which has unreliable naming),
-  // we imperatively add hotspots via viewer.addHotSpot() after the viewer is ready.
+  // Sync Hotspots Effect: Keeps the viewer's hotspots in sync with room state
+  useEffect(() => {
+    if (!viewer || !displaySrc) return;
+
+    // Clear existing hotspots to ensure a clean state
+    const existingHotspots = viewer.getHotSpots();
+    existingHotspots.forEach(hs => {
+      try {
+        viewer.removeHotSpot(hs.id);
+      } catch (e) { /* ignore */ }
+    });
+
+    // Add navigation hotspots
+    (room?.hotspots || []).forEach((hotspot) => {
+      try {
+        viewer.addHotSpot({
+          id: String(hotspot._id || hotspot.id || Math.random()),
+          pitch: Number(hotspot.pitch) || 0,
+          yaw: Number(hotspot.yaw) || 0,
+          type: 'custom',
+          cssClass: 'immersiview-hotspot',
+          createTooltipFunc: (div) => {
+            div.appendChild(
+              createTooltipNode(
+                hotspot.label || 'Go to room',
+                roomMap?.[hotspot.targetRoomId]?.name || 'Linked room',
+                '#60a5fa'
+              )
+            );
+          },
+          clickHandlerFunc: () =>
+            handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
+        });
+      } catch (e) { console.error("Error adding hotspot", e); }
+    });
+
+    // Add info markers
+    (room?.infoMarkers || []).forEach((marker) => {
+      try {
+        viewer.addHotSpot({
+          id: String(marker._id || marker.id || Math.random()),
+          pitch: Number(marker.pitch) || 0,
+          yaw: Number(marker.yaw) || 0,
+          type: 'custom',
+          cssClass: 'immersiview-marker',
+          createTooltipFunc: (div) => {
+            div.appendChild(
+              createTooltipNode(marker.title || 'Info', marker.description, '#34d399')
+            );
+          },
+        });
+      } catch (e) { console.error("Error adding info marker", e); }
+    });
+  }, [viewer, room?.hotspots, room?.infoMarkers, roomMap, displaySrc, handleHotspotClick]);
+
   const handlePannellumLoad = useCallback(() => {
     if (!pannellumRef.current) return;
-    const viewer = pannellumRef.current.getViewer();
-    if (!viewer) return;
+    const v = pannellumRef.current.getViewer();
+    if (!v) return;
 
-    viewerInstance.current = viewer;
+    setViewer(v);
 
-    // Attach panorama click listener for editing mode
-    viewer.off('mousedown');
-    viewer.on('mousedown', (e) => {
-      if (isEditing) {
-        const [pitch, yaw] = viewer.mouseEventToCoords(e);
-        onPanoramaClick?.({ pitch, yaw });
+    // Attach panorama click listener for editing mode using ref to avoid stale closure
+    v.off('mousedown');
+    v.on('mousedown', (e) => {
+      if (isEditingRef.current) {
+        const [pitch, yaw] = v.mouseEventToCoords(e);
+        onPanoramaClickRef.current?.({ pitch, yaw });
       }
     });
 
-    // Delay hotspot addition slightly — Pannellum's internal coordinate system
-    // may not be fully ready when onLoad fires. Without this delay, pitch/yaw → pixel
-    // conversion returns (0,0) and hotspots collapse to the top-left corner.
-    // Opening DevTools "fixes" it because the resize event forces recalculation.
-    setTimeout(() => {
-      // Add navigation hotspots imperatively
-      (room?.hotspots || []).forEach((hotspot) => {
-        try {
-          viewer.addHotSpot({
-            id: String(hotspot._id || hotspot.id || Math.random()),
-            pitch: Number(hotspot.pitch) || 0,
-            yaw: Number(hotspot.yaw) || 0,
-            type: 'custom',
-            cssClass: 'immersiview-hotspot',
-            createTooltipFunc: (div) => {
-              div.appendChild(
-                createTooltipNode(
-                  hotspot.label || 'Go to room',
-                  roomMap?.[hotspot.targetRoomId]?.name || 'Linked room',
-                  '#60a5fa'
-                )
-              );
-            },
-            clickHandlerFunc: () =>
-              handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
-          });
-        } catch (_) { /* ignore duplicate id errors */ }
-      });
-
-      // Add info markers imperatively
-      (room?.infoMarkers || []).forEach((marker) => {
-        try {
-          viewer.addHotSpot({
-            id: String(marker._id || marker.id || Math.random()),
-            pitch: Number(marker.pitch) || 0,
-            yaw: Number(marker.yaw) || 0,
-            type: 'custom',
-            cssClass: 'immersiview-marker',
-            createTooltipFunc: (div) => {
-              div.appendChild(
-                createTooltipNode(marker.title || 'Info', marker.description, '#34d399')
-              );
-            },
-          });
-        } catch (_) { /* ignore duplicate id errors */ }
-      });
-
-      // Layout Stabilization Loop:
-      // Force several recalculations over 1.5 seconds to ensure Pannellum
-      // captures the final container size after any transitions settle.
-      let count = 0;
-      const interval = setInterval(() => {
-        viewer.resize();
-        window.dispatchEvent(new Event('resize'));
-        if (++count > 15) clearInterval(interval);
-      }, 100);
-    }, 150);
-  }, [isEditing, onPanoramaClick, room, roomMap, handleHotspotClick]);
+    // Layout Stabilization Loop
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    let count = 0;
+    intervalRef.current = setInterval(() => {
+      v.resize();
+      window.dispatchEvent(new Event('resize'));
+      if (++count > 15) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    }, 100);
+  }, []);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
 
@@ -259,6 +277,11 @@ const PanoramaViewer = ({
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} sx={{ pointerEvents: "auto" }}>
+            <Tooltip title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}>
+              <IconButton onClick={toggleFullscreen} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
+                {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+              </IconButton>
+            </Tooltip>
             <Tooltip title="Set current view as default">
               <IconButton onClick={handleSaveView} sx={{ color: "white", bgcolor: "rgba(17,24,39,0.6)" }}>
                 <CameraIcon />
