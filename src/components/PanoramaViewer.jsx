@@ -148,60 +148,66 @@ const PanoramaViewer = ({
     }
   }, [onNavigateRoom]);
 
-  const panoramaHotspots = useMemo(() => {
-    if (!room) return [];
-
-    const navigationHotspots = (room.hotspots || []).map((hotspot) => ({
-      id: hotspot._id || hotspot.id,
-      pitch: hotspot.pitch,
-      yaw: hotspot.yaw,
-      type: "custom", // Explicitly set type for custom behavior
-      cssClass: "immersiview-hotspot",
-      createTooltipFunc: (div) => {
-        div.appendChild(
-          createTooltipNode(
-            hotspot.label || "Go to room",
-            roomMap?.[hotspot.targetRoomId]?.name || "Unlinked room",
-            "#60a5fa"
-          )
-        );
-      },
-      clickHandlerFunc: () => handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
-    }));
-
-    const infoMarkers = (room.infoMarkers || []).map((marker) => ({
-      id: marker._id || marker.id,
-      pitch: marker.pitch,
-      yaw: marker.yaw,
-      type: "info", // Use standard info type for markers
-      cssClass: "immersiview-marker",
-      createTooltipFunc: (div) => {
-        div.appendChild(createTooltipNode(marker.title || "Info", marker.description, "#34d399"));
-      },
-    }));
-
-    return [...navigationHotspots, ...infoMarkers];
-  }, [onNavigateRoom, room, roomMap]);
-
-  // Bug Fix 9: The click listener must be attached only after the viewer is fully loaded.
-  // We use handlePannellumLoad to ensure the viewer instance is ready.
+  // Instead of relying on pannellum-react's hotspot prop (which has unreliable naming),
+  // we imperatively add hotspots via viewer.addHotSpot() after the viewer is ready.
   const handlePannellumLoad = useCallback(() => {
     if (!pannellumRef.current) return;
     const viewer = pannellumRef.current.getViewer();
-    if (viewer) {
-      viewerInstance.current = viewer;
-      
-      // Remove any existing listener before adding a new one
-      viewer.off('mousedown'); 
+    if (!viewer) return;
 
-      viewer.on('mousedown', (e) => {
-        if (isEditing) {
-          const [pitch, yaw] = viewer.mouseEventToCoords(e);
-          onPanoramaClick?.({ pitch, yaw });
-        }
-      });
-    }
-  }, [isEditing, onPanoramaClick]);
+    viewerInstance.current = viewer;
+
+    // Attach panorama click listener for editing mode
+    viewer.off('mousedown');
+    viewer.on('mousedown', (e) => {
+      if (isEditing) {
+        const [pitch, yaw] = viewer.mouseEventToCoords(e);
+        onPanoramaClick?.({ pitch, yaw });
+      }
+    });
+
+    // Add navigation hotspots imperatively
+    (room?.hotspots || []).forEach((hotspot) => {
+      try {
+        viewer.addHotSpot({
+          id: String(hotspot._id || hotspot.id || Math.random()),
+          pitch: Number(hotspot.pitch) || 0,
+          yaw: Number(hotspot.yaw) || 0,
+          type: 'custom',
+          cssClass: 'immersiview-hotspot',
+          createTooltipFunc: (div) => {
+            div.appendChild(
+              createTooltipNode(
+                hotspot.label || 'Go to room',
+                roomMap?.[hotspot.targetRoomId]?.name || 'Linked room',
+                '#60a5fa'
+              )
+            );
+          },
+          clickHandlerFunc: () =>
+            handleHotspotClick(hotspot.targetRoomId, hotspot.pitch, hotspot.yaw),
+        });
+      } catch (_) { /* ignore duplicate id errors */ }
+    });
+
+    // Add info markers imperatively
+    (room?.infoMarkers || []).forEach((marker) => {
+      try {
+        viewer.addHotSpot({
+          id: String(marker._id || marker.id || Math.random()),
+          pitch: Number(marker.pitch) || 0,
+          yaw: Number(marker.yaw) || 0,
+          type: 'custom',
+          cssClass: 'immersiview-marker',
+          createTooltipFunc: (div) => {
+            div.appendChild(
+              createTooltipNode(marker.title || 'Info', marker.description, '#34d399')
+            );
+          },
+        });
+      } catch (_) { /* ignore duplicate id errors */ }
+    });
+  }, [isEditing, onPanoramaClick, room, roomMap, handleHotspotClick]);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
 
@@ -273,7 +279,7 @@ const PanoramaViewer = ({
             autoLoad
             autoRotate={autoRotate}
             showControls={!isPublic}
-            hotspots={panoramaHotspots}
+            hotspots={[]}
           />
         </Box>
       ) : (
