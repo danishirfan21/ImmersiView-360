@@ -164,7 +164,8 @@ const PanoramaViewer = ({
     if (!viewer || !displaySrc) return;
 
     // Clear existing hotspots to ensure a clean state
-    const existingHotspots = viewer.getHotSpots();
+    const config = viewer.getConfig();
+    const existingHotspots = config?.hotSpots || [];
     existingHotspots.forEach(hs => {
       try {
         viewer.removeHotSpot(hs.id);
