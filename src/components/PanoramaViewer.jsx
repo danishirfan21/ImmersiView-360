@@ -61,6 +61,8 @@ const PanoramaViewer = ({
   const rootRef = useRef(null);
   const pannellumRef = useRef(null);
   const viewerInstance = useRef(null);
+  const stabilizationIntervalRef = useRef(null);
+  const hotspotTimeoutRef = useRef(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -166,11 +168,21 @@ const PanoramaViewer = ({
       }
     });
 
+    if (hotspotTimeoutRef.current) {
+      clearTimeout(hotspotTimeoutRef.current);
+      hotspotTimeoutRef.current = null;
+    }
+
+    if (stabilizationIntervalRef.current) {
+      clearInterval(stabilizationIntervalRef.current);
+      stabilizationIntervalRef.current = null;
+    }
+
     // Delay hotspot addition slightly — Pannellum's internal coordinate system
     // may not be fully ready when onLoad fires. Without this delay, pitch/yaw → pixel
     // conversion returns (0,0) and hotspots collapse to the top-left corner.
     // Opening DevTools "fixes" it because the resize event forces recalculation.
-    setTimeout(() => {
+    hotspotTimeoutRef.current = setTimeout(() => {
       // Add navigation hotspots imperatively
       (room?.hotspots || []).forEach((hotspot) => {
         try {
@@ -217,13 +229,28 @@ const PanoramaViewer = ({
       // Force several recalculations over 1.5 seconds to ensure Pannellum
       // captures the final container size after any transitions settle.
       let count = 0;
-      const interval = setInterval(() => {
+      stabilizationIntervalRef.current = setInterval(() => {
         viewer.resize();
         window.dispatchEvent(new Event('resize'));
-        if (++count > 15) clearInterval(interval);
+        if (++count > 15) {
+          clearInterval(stabilizationIntervalRef.current);
+          stabilizationIntervalRef.current = null;
+        }
       }, 100);
     }, 150);
   }, [isEditing, onPanoramaClick, room, roomMap, handleHotspotClick]);
+
+  useEffect(() => () => {
+    if (hotspotTimeoutRef.current) {
+      clearTimeout(hotspotTimeoutRef.current);
+      hotspotTimeoutRef.current = null;
+    }
+
+    if (stabilizationIntervalRef.current) {
+      clearInterval(stabilizationIntervalRef.current);
+      stabilizationIntervalRef.current = null;
+    }
+  }, []);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
 
