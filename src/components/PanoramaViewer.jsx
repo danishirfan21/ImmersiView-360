@@ -63,6 +63,7 @@ const PanoramaViewer = ({
   const viewerInstance = useRef(null);
   const stabilizationIntervalRef = useRef(null);
   const hotspotTimeoutRef = useRef(null);
+  const activeHotspotIdsRef = useRef([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [displaySrc, setDisplaySrc] = useState("");
   const [isImageLoading, setIsImageLoading] = useState(false);
@@ -159,6 +160,17 @@ const PanoramaViewer = ({
 
     viewerInstance.current = viewer;
 
+    const clearActiveHotspots = () => {
+      activeHotspotIdsRef.current.forEach((id) => {
+        try {
+          viewer.removeHotSpot(id);
+        } catch (_) {
+          // ignore missing hotspot ids
+        }
+      });
+      activeHotspotIdsRef.current = [];
+    };
+
     // Attach panorama click listener for editing mode
     viewer.off('mousedown');
     viewer.on('mousedown', (e) => {
@@ -178,16 +190,23 @@ const PanoramaViewer = ({
       stabilizationIntervalRef.current = null;
     }
 
+    clearActiveHotspots();
+
     // Delay hotspot addition slightly — Pannellum's internal coordinate system
     // may not be fully ready when onLoad fires. Without this delay, pitch/yaw → pixel
     // conversion returns (0,0) and hotspots collapse to the top-left corner.
     // Opening DevTools "fixes" it because the resize event forces recalculation.
     hotspotTimeoutRef.current = setTimeout(() => {
+      const nextHotspotIds = [];
+
       // Add navigation hotspots imperatively
-      (room?.hotspots || []).forEach((hotspot) => {
+      (room?.hotspots || []).forEach((hotspot, index) => {
+        const hotspotId = String(hotspot._id || hotspot.id || `nav-${room?._id || 'room'}-${index}`);
+        nextHotspotIds.push(hotspotId);
+
         try {
           viewer.addHotSpot({
-            id: String(hotspot._id || hotspot.id || Math.random()),
+            id: hotspotId,
             pitch: Number(hotspot.pitch) || 0,
             yaw: Number(hotspot.yaw) || 0,
             type: 'custom',
@@ -208,10 +227,13 @@ const PanoramaViewer = ({
       });
 
       // Add info markers imperatively
-      (room?.infoMarkers || []).forEach((marker) => {
+      (room?.infoMarkers || []).forEach((marker, index) => {
+        const markerId = String(marker._id || marker.id || `marker-${room?._id || 'room'}-${index}`);
+        nextHotspotIds.push(markerId);
+
         try {
           viewer.addHotSpot({
-            id: String(marker._id || marker.id || Math.random()),
+            id: markerId,
             pitch: Number(marker.pitch) || 0,
             yaw: Number(marker.yaw) || 0,
             type: 'custom',
@@ -224,6 +246,8 @@ const PanoramaViewer = ({
           });
         } catch (_) { /* ignore duplicate id errors */ }
       });
+
+      activeHotspotIdsRef.current = nextHotspotIds;
 
       // Layout Stabilization Loop:
       // Force several recalculations over 1.5 seconds to ensure Pannellum
@@ -250,6 +274,18 @@ const PanoramaViewer = ({
       clearInterval(stabilizationIntervalRef.current);
       stabilizationIntervalRef.current = null;
     }
+
+    const viewer = pannellumRef.current?.getViewer();
+    if (viewer) {
+      activeHotspotIdsRef.current.forEach((id) => {
+        try {
+          viewer.removeHotSpot(id);
+        } catch (_) {
+          // ignore missing hotspot ids
+        }
+      });
+    }
+    activeHotspotIdsRef.current = [];
   }, []);
 
   const finalHeight = containerHeight || (isPublic ? "100vh" : "560px");
