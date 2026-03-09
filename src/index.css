@@ -1,7 +1,6 @@
 .immersiview-hotspot {
     width: 32px;
     height: 32px;
-    position: absolute !important;
     margin-top: -16px !important;
     margin-left: -16px !important;
     background: rgba(255, 255, 255, 0.9) !important;
@@ -24,19 +23,18 @@
 }
 
 .immersiview-hotspot:hover {
-    transform: scale(1.15) !important;
     background: #3b82f6 !important;
     border-color: #fff !important;
 }
 
 .immersiview-hotspot:hover::after {
     color: #fff;
+    transform: scale(1.25);
 }
 
 .immersiview-marker {
     width: 28px;
     height: 28px;
-    position: absolute !important;
     margin-top: -14px !important;
     margin-left: -14px !important;
     background: #10b981 !important;
@@ -44,7 +42,7 @@
     border: 2px solid #fff !important;
     cursor: pointer !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
-    transition: transform 0.2s !important;
+    transition: all 0.2s !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -58,11 +56,15 @@
     font-style: italic;
     font-weight: bold;
     font-size: 16px;
+    transition: transform 0.2s !important;
 }
 
 .immersiview-marker:hover {
-    transform: scale(1.15) !important;
     background: #059669 !important;
+}
+
+.immersiview-marker:hover::after {
+    transform: scale(1.25);
 }
 
 /* Pannellum overrides */

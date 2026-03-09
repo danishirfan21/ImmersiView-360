@@ -213,6 +213,9 @@ const PanoramaViewer = ({
         });
       } catch (e) { console.error("Error adding info marker", e); }
     });
+
+    // Ensure positions are calculated correctly immediately after adding
+    viewer.resize();
   }, [viewer, room?.hotspots, room?.infoMarkers, roomMap, displaySrc, handleHotspotClick]);
 
   const handlePannellumLoad = useCallback(() => {
